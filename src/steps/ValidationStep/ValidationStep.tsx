@@ -18,7 +18,7 @@ type Props<T extends string> = {
 }
 
 export const ValidationStep = <T extends string>({ initialData, file, onBack }: Props<T>) => {
-  const { translations, fields, onClose, onSubmit, rowHook, tableHook, multiSelectValueSeparator } = useRsi<T>()
+  const { translations, fields, onClose, onSubmit, rowHook, tableHook } = useRsi<T>()
   const styles = useStyleConfig(
     "ValidationStep",
   ) as (typeof themeOverrides)["components"]["ValidationStep"]["baseStyle"]
@@ -65,7 +65,7 @@ export const ValidationStep = <T extends string>({ initialData, file, onBack }: 
     [data, updateData],
   )
 
-  const columns = useMemo(() => generateColumns(fields, multiSelectValueSeparator), [fields, multiSelectValueSeparator])
+  const columns = useMemo(() => generateColumns(fields), [fields])
 
   const tableData = useMemo(() => {
     if (filterByErrors) {
