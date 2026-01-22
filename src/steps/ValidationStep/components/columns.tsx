@@ -1,10 +1,11 @@
 import { Column, useRowSelection } from "react-data-grid"
-import { Box, Checkbox, Input, Switch, Tooltip } from "@chakra-ui/react"
-import type { Data, Fields } from "../../../types"
+import { Box, Checkbox, Input, Switch, Tag, Tooltip, Wrap, WrapItem } from "@chakra-ui/react"
+import type { Data, Fields, MultiSelect } from "../../../types"
 import type { ChangeEvent } from "react"
 import type { Meta } from "../types"
 import { CgInfo } from "react-icons/cg"
 import { TableSelect } from "../../../components/Selects/TableSelect"
+import { TableMultiSelect } from "../../../components/Selects/TableMultiSelect"
 
 const SELECT_COLUMN_KEY = "select-row"
 
@@ -79,6 +80,21 @@ export const generateColumns = <T extends string>(fields: Fields<T>): Column<Dat
               />
             )
             break
+          case "multi_select":
+            component = (
+              <TableMultiSelect
+                value={
+                  Array.isArray(row[column.key])
+                    ? column.fieldType.options.filter((option) => (row[column.key] as string[]).includes(option.value))
+                    : []
+                }
+                onChange={(values) => {
+                  onRowChange({ ...row, [column.key]: values.map((v) => v.value) }, true)
+                }}
+                options={column.fieldType.options}
+              />
+            )
+            break
           default:
             component = (
               <Box paddingInlineStart="0.5rem">
@@ -129,6 +145,26 @@ export const generateColumns = <T extends string>(fields: Fields<T>): Column<Dat
             component = (
               <Box minWidth="100%" minHeight="100%" overflow="hidden" textOverflow="ellipsis">
                 {column.fieldType.options.find((option) => option.value === row[column.key as T])?.label || null}
+              </Box>
+            )
+            break
+          case "multi_select":
+            component = (
+              <Box minWidth="100%" minHeight="100%" overflow="hidden">
+                {Array.isArray(row[column.key as T]) ? (
+                  <Wrap spacing={1} align="center">
+                    {(row[column.key as T] as string[]).map((value) => {
+                      const option = (column.fieldType as MultiSelect).options.find((opt) => opt.value === value)
+                      return option ? (
+                        <WrapItem key={value}>
+                          <Tag size="sm" colorScheme="blue" variant="subtle">
+                            {option.label}
+                          </Tag>
+                        </WrapItem>
+                      ) : null
+                    })}
+                  </Wrap>
+                ) : null}
               </Box>
             )
             break
