@@ -28,7 +28,10 @@ export const aiAutoMapSelectValues = async <T extends string>({
   aiApiKey,
   aiModel = "openai/gpt-5-nano",
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
-  const apiKey = aiApiKey || (typeof process !== "undefined" ? process.env?.AI_GATEWAY_API_KEY : undefined)
+  // Try to get API key from prop first, then fall back to environment variable
+  // Note: In browser environments, process.env may not be available - the aiApiKey prop should be used
+  const apiKey =
+    aiApiKey || (typeof process !== "undefined" && process.env ? process.env.AI_GATEWAY_API_KEY : undefined)
 
   if (!apiKey) {
     return {
@@ -38,9 +41,9 @@ export const aiAutoMapSelectValues = async <T extends string>({
   }
 
   try {
-    // Parse the model string (format: "provider/model")
-    const [, modelName] = aiModel.split("/")
-    const actualModel = modelName || aiModel
+    // Parse the model string (format: "provider/model" or just "model")
+    const modelParts = aiModel.split("/")
+    const actualModel = modelParts.length > 1 ? modelParts[1] : aiModel
 
     // Create OpenAI provider with the API key
     const openai = createOpenAI({
@@ -70,12 +73,29 @@ IMPORTANT: Return ONLY a valid JSON object with no other text, in this exact for
 Return exactly ${entries.length} mappings, one for each entry in the same order.`,
     })
 
-    // Parse the response
-    const cleanedText = text
-      .trim()
-      .replace(/^```json\n?/, "")
-      .replace(/\n?```$/, "")
-    const parsed = JSON.parse(cleanedText) as MappingResponse
+    // Parse the response with error handling
+    let parsed: MappingResponse
+    try {
+      const cleanedText = text
+        .trim()
+        .replace(/^```json\n?/, "")
+        .replace(/\n?```$/, "")
+      parsed = JSON.parse(cleanedText) as MappingResponse
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", text)
+      return {
+        mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
+        error: "Failed to parse AI response",
+      }
+    }
+
+    // Validate response structure
+    if (!parsed || !Array.isArray(parsed.mappings)) {
+      return {
+        mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
+        error: "Invalid AI response structure",
+      }
+    }
 
     // Convert the response to the expected format
     const mappings = parsed.mappings.map((m) => ({
