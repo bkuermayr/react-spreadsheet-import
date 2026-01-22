@@ -32,6 +32,15 @@ const mockDataWithSkills = [
   ["Alice", "Brown", "Node.js", "Team Two"],
 ]
 
+// Mock data with unmatched values (abbreviations and variations)
+const mockDataWithUnmatchedValues = [
+  ["name", "surname", "skills", "team"],
+  ["John", "Doe", "JS;TS", "T1"], // Abbreviations that won't auto-match
+  ["Jane", "Smith", "ReactJS;NodeJS", "T2"],
+  ["Bob", "Johnson", "Javascript;typescript", "team 1"], // Case variations
+  ["Alice", "Brown", "node", "team 2"],
+]
+
 export const Basic = () => (
   <Providers theme={defaultTheme} rsiValues={mockRsiValues}>
     <ModalWrapper isOpen={true} onClose={() => {}}>
@@ -48,6 +57,26 @@ export const WithMultiSelect = () => (
         data={mockDataWithSkills.slice(1)}
         onContinue={(data) => {
           console.log("Data with multi_select:", data)
+        }}
+      />
+    </ModalWrapper>
+  </Providers>
+)
+
+export const WithUnmatchedValuesForAI = () => (
+  <Providers
+    theme={defaultTheme}
+    rsiValues={{
+      ...mockRsiValues,
+      autoMapSelectValues: false, // Disable auto-matching to show AI button
+    }}
+  >
+    <ModalWrapper isOpen={true} onClose={() => {}}>
+      <MatchColumnsStep
+        headerValues={mockDataWithUnmatchedValues[0] as string[]}
+        data={mockDataWithUnmatchedValues.slice(1)}
+        onContinue={(data) => {
+          console.log("Data with unmatched values:", data)
         }}
       />
     </ModalWrapper>

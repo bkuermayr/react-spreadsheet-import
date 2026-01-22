@@ -12,6 +12,8 @@ import type { Field, RawData } from "../../types"
 import { getMatchedColumns } from "./utils/getMatchedColumns"
 import { UnmatchedFieldsAlert } from "../../components/Alerts/UnmatchedFieldsAlert"
 import { findUnmatchedRequiredFields } from "./utils/findUnmatchedRequiredFields"
+import { aiAutoMapSelectValues } from "./utils/aiAutoMap"
+import { getFieldOptions } from "./utils/getFieldOptions"
 
 export type MatchColumnsProps<T extends string> = {
   data: RawData[]
@@ -89,9 +91,18 @@ export const MatchColumnsStep = <T extends string>({
 }: MatchColumnsProps<T>) => {
   const toast = useToast()
   const dataExample = data.slice(0, 2)
-  const { fields, autoMapHeaders, autoMapSelectValues, autoMapDistance, translations, multiSelectValueSeparator } =
-    useRsi<T>()
+  const {
+    fields,
+    autoMapHeaders,
+    autoMapSelectValues,
+    autoMapDistance,
+    translations,
+    multiSelectValueSeparator,
+    aiApiKey,
+    aiModel,
+  } = useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
+  const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
   const [columns, setColumns] = useState<Columns<T>>(
     // Do not remove spread, it indexes empty array elements, otherwise map() skips over them
     ([...headerValues] as string[]).map((value, index) => ({ type: ColumnType.empty, index, header: value ?? "" })),
@@ -161,6 +172,87 @@ export const MatchColumnsStep = <T extends string>({
   )
   const unmatchedRequiredFields = useMemo(() => findUnmatchedRequiredFields(fields, columns), [fields, columns])
 
+  const onAiAutoMap = useCallback(
+    async (columnIndex: number) => {
+      const column = columns[columnIndex]
+      if (!("matchedOptions" in column) || !("value" in column)) return
+
+      // Get the field options for this column
+      const fieldOptions = getFieldOptions(fields, column.value)
+      if (fieldOptions.length === 0) return
+
+      // Get unmatched entries
+      const unmatchedEntries = column.matchedOptions.filter((opt) => !opt.value).map((opt) => opt.entry!)
+
+      if (unmatchedEntries.length === 0) return
+
+      setAiMappingColumnIndex(columnIndex)
+
+      try {
+        const result = await aiAutoMapSelectValues<T>({
+          entries: unmatchedEntries,
+          fieldOptions,
+          aiApiKey,
+          aiModel,
+        })
+
+        if (result.error) {
+          toast({
+            status: "error",
+            variant: "left-accent",
+            position: "bottom-left",
+            title: translations.matchColumnsStep.aiMappingError,
+            description: result.error,
+            isClosable: true,
+          })
+        }
+
+        // Update the column with AI-mapped values
+        setColumns(
+          columns.map((col, index) => {
+            if (index !== columnIndex || !("matchedOptions" in col)) return col
+
+            const updatedOptions = col.matchedOptions.map((opt) => {
+              const aiMapping = result.mappings.find((m) => m.entry === opt.entry)
+              if (aiMapping && aiMapping.value) {
+                return { ...opt, value: aiMapping.value }
+              }
+              return opt
+            })
+
+            const allMatched = updatedOptions.every((o) => o.value)
+            const newType =
+              col.type === ColumnType.matchedSelect || col.type === ColumnType.matchedSelectOptions
+                ? allMatched
+                  ? ColumnType.matchedSelectOptions
+                  : ColumnType.matchedSelect
+                : allMatched
+                ? ColumnType.matchedMultiSelectOptions
+                : ColumnType.matchedMultiSelect
+
+            return {
+              ...col,
+              type: newType,
+              matchedOptions: updatedOptions,
+            } as Column<T>
+          }),
+        )
+      } catch (error) {
+        toast({
+          status: "error",
+          variant: "left-accent",
+          position: "bottom-left",
+          title: translations.matchColumnsStep.aiMappingError,
+          description: error instanceof Error ? error.message : "Unknown error",
+          isClosable: true,
+        })
+      } finally {
+        setAiMappingColumnIndex(null)
+      }
+    },
+    [columns, fields, aiApiKey, aiModel, toast, translations.matchColumnsStep.aiMappingError],
+  )
+
   const handleOnContinue = useCallback(async () => {
     if (unmatchedRequiredFields.length > 0) {
       setShowUnmatchedFieldsAlert(true)
@@ -211,7 +303,15 @@ export const MatchColumnsStep = <T extends string>({
             entries={dataExample.map((row) => row[column.index])}
           />
         )}
-        templateColumn={(column) => <TemplateColumn column={column} onChange={onChange} onSubChange={onSubChange} />}
+        templateColumn={(column) => (
+          <TemplateColumn
+            column={column}
+            onChange={onChange}
+            onSubChange={onSubChange}
+            onAiAutoMap={onAiAutoMap}
+            isAiMapping={aiMappingColumnIndex === column.index}
+          />
+        )}
       />
     </>
   )

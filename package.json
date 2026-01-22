@@ -55,9 +55,11 @@
     "react-dom": ">=18"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.16",
     "@chakra-ui/react": "^2.8.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "ai": "^6.0.47",
     "chakra-react-select": "^4.7.5",
     "chakra-ui-steps": "2.0.4",
     "framer-motion": "^10.16.4",
@@ -120,7 +122,8 @@
     "ts-jest": "27.1.4",
     "ttypescript": "1.5.15",
     "typescript": "4.9.5",
-    "typescript-transform-paths": "3.4.6"
+    "typescript-transform-paths": "3.4.6",
+    "web-streams-polyfill": "^4.2.0"
   },
   "overrides": {
     "semver": "^7.5.3"

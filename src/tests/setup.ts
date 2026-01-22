@@ -1,3 +1,7 @@
+// Polyfill for TransformStream (required for AI SDK)
+import { TransformStream, ReadableStream, WritableStream } from "web-streams-polyfill"
+Object.assign(globalThis, { TransformStream, ReadableStream, WritableStream })
+
 // Yeeted from https://github.com/adazzle/react-data-grid/blob/main/test/setup.ts
 if (typeof window !== "undefined") {
   window.ResizeObserver ??= class {

@@ -22,6 +22,7 @@ export const defaultRSIProps: Partial<RsiProps<any>> = {
   dateFormat: "yyyy-mm-dd", // ISO 8601,
   parseRaw: true,
   multiSelectValueSeparator: ";",
+  aiModel: "openai/gpt-5-nano",
 } as const
 
 export const ReactSpreadsheetImport = <T extends string>(propsWithoutDefaults: RsiProps<T>) => {

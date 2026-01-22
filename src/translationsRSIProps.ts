@@ -37,6 +37,11 @@ export const translations = {
     unmatched: "Unmatched",
     duplicateColumnWarningTitle: "Another column unselected",
     duplicateColumnWarningDescription: "Columns cannot duplicate",
+    autoMapWithAiButtonTitle: "Automap with AI",
+    aiMappingInProgress: "AI mapping in progress...",
+    aiMappingError: "AI mapping failed",
+    aiApiKeyMissing:
+      "AI API key is missing. Please provide aiApiKey prop or set AI_GATEWAY_API_KEY environment variable.",
   },
   validationStep: {
     title: "Validate data",
