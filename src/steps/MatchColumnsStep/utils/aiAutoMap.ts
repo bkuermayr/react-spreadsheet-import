@@ -65,8 +65,8 @@ ${optionsList}
 Entries to map:
 ${entriesList}
 
-For each entry, return the "value" (not label) of the best matching option.
-IMPORTANT: If no option is a clear semantic match (considering abbreviations, synonyms, and partial matches), you MUST return null for that entry's value. Do NOT force a mapping when there is no fitting value.
+For each entry, return the "value" (not label) of the best matching option, considering semantic similarity, abbreviations, synonyms, and partial matches.
+IMPORTANT: If no option is a clear semantic match, you MUST return null for that entry's value. Do NOT force a mapping when there is no fitting value.
 
 IMPORTANT: Return ONLY a valid JSON object with no other text, in this exact format:
 {"mappings":[{"entry":"original entry text","value":"matched value or null"},...]}
