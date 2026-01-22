@@ -8,6 +8,7 @@ type AiAutoMapParams = {
   fieldOptions: readonly SelectOption[]
   aiApiKey?: string
   aiModel?: string
+  customValueMappingPrompt?: (optionsList: string, entriesList: string, entriesCount: number) => string
 }
 
 type AiAutoMapResult<T> = {
@@ -27,6 +28,7 @@ export const aiAutoMapSelectValues = async <T extends string>({
   fieldOptions,
   aiApiKey,
   aiModel = "openai/gpt-5-nano",
+  customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
   // Try to get API key from prop first, then fall back to environment variable
   // Note: In browser environments, process.env may not be available - the aiApiKey prop should be used
@@ -54,9 +56,8 @@ export const aiAutoMapSelectValues = async <T extends string>({
     const optionsList = fieldOptions.map((opt) => `- "${opt.label}" (value: "${opt.value}")`).join("\n")
     const entriesList = entries.map((e, i) => `${i + 1}. "${e}"`).join("\n")
 
-    const { text } = await generateText({
-      model: openai(actualModel),
-      prompt: `You are a data mapping assistant. Map the following entries to the most appropriate option from the available options list.
+    // Use custom prompt if provided, otherwise use the default prompt
+    const defaultPrompt = `You are a data mapping assistant. Map the following entries to the most appropriate option from the available options list.
 
 Available options:
 ${optionsList}
@@ -64,13 +65,21 @@ ${optionsList}
 Entries to map:
 ${entriesList}
 
-For each entry, return the "value" (not label) of the best matching option. If no option matches well, return null for the value.
-Consider semantic similarity, abbreviations, synonyms, and partial matches.
+For each entry, return the "value" (not label) of the best matching option.
+IMPORTANT: If no option is a clear semantic match (considering abbreviations, synonyms, and partial matches), you MUST return null for that entry's value. Do NOT force a mapping when there is no fitting value.
 
 IMPORTANT: Return ONLY a valid JSON object with no other text, in this exact format:
 {"mappings":[{"entry":"original entry text","value":"matched value or null"},...]}
 
-Return exactly ${entries.length} mappings, one for each entry in the same order.`,
+Return exactly ${entries.length} mappings, one for each entry in the same order.`
+
+    const prompt = customValueMappingPrompt
+      ? customValueMappingPrompt(optionsList, entriesList, entries.length)
+      : defaultPrompt
+
+    const { text } = await generateText({
+      model: openai(actualModel),
+      prompt,
     })
 
     // Parse the response with error handling

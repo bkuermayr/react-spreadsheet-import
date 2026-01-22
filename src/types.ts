@@ -55,6 +55,9 @@ export type RsiProps<T extends string> = {
   aiApiKey?: string
   // AI model to use for automap. Default: "openai/gpt-5-nano"
   aiModel?: string
+  // Custom prompt for AI value mapping. Receives optionsList and entriesList as template variables.
+  // Must return a prompt that produces JSON in format: {"mappings":[{"entry":"text","value":"matched or null"},...]}
+  customValueMappingPrompt?: (optionsList: string, entriesList: string, entriesCount: number) => string
 }
 
 export type RawData = Array<string | undefined>

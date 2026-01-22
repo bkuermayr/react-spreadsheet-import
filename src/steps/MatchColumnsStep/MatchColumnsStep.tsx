@@ -100,6 +100,7 @@ export const MatchColumnsStep = <T extends string>({
     multiSelectValueSeparator,
     aiApiKey,
     aiModel,
+    customValueMappingPrompt,
   } = useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
   const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
@@ -194,6 +195,7 @@ export const MatchColumnsStep = <T extends string>({
           fieldOptions,
           aiApiKey,
           aiModel,
+          customValueMappingPrompt,
         })
 
         if (result.error) {
@@ -250,7 +252,7 @@ export const MatchColumnsStep = <T extends string>({
         setAiMappingColumnIndex(null)
       }
     },
-    [columns, fields, aiApiKey, aiModel, toast, translations.matchColumnsStep.aiMappingError],
+    [columns, fields, aiApiKey, aiModel, customValueMappingPrompt, toast, translations.matchColumnsStep.aiMappingError],
   )
 
   const handleOnContinue = useCallback(async () => {
