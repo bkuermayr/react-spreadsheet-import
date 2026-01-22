@@ -139,7 +139,7 @@ export const generateColumns = <T extends string>(
             component = (
               <Box minWidth="100%" minHeight="100%" overflow="hidden" textOverflow="ellipsis">
                 {Array.isArray(row[column.key as T])
-                  ? (row[column.key as T] as string[]).join(multiSelectValueSeparator)
+                  ? (row[column.key as T] as string[]).map(String).join(multiSelectValueSeparator)
                   : row[column.key as T]}
               </Box>
             )
