@@ -21,6 +21,7 @@
     "prebuild": "npm run clean",
     "build": "rollup -c rollup.config.ts",
     "build-storybook": "storybook build -o docs-build",
+    "prepare": "npm run build",
     "release:patch": "git checkout master && git pull && npm run test:unit && npm run ts && npm run build && npm version patch && git add -A && git push && git push --tags && npm publish",
     "release:minor": "git checkout master && git pull && npm run test:unit && npm run ts && npm run build && npm version minor && git add -A && git push && git push --tags && npm publish",
     "release:major": "git checkout master && git pull && npm run test:unit && npm run ts && npm run build && npm version major && git add -A && git push && git push --tags && npm publish",
