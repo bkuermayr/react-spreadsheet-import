@@ -39,6 +39,8 @@ export type RsiProps<T extends string> = {
   autoMapHeaders?: boolean
   // When field type is "select", automatically match values if possible. Default: false
   autoMapSelectValues?: boolean
+  // Separator used to split multi_select field values. Default: ";"
+  multiSelectValueSeparator?: string
   // Headers matching accuracy: 1 for strict and up for more flexible matching
   autoMapDistance?: number
   // Initial Step state to be rendered on load
@@ -53,7 +55,7 @@ export type RsiProps<T extends string> = {
 
 export type RawData = Array<string | undefined>
 
-export type Data<T extends string> = { [key in T]: string | boolean | undefined }
+export type Data<T extends string> = { [key in T]: string | boolean | string[] | undefined }
 
 // Data model RSI uses for spreadsheet imports
 export type Fields<T extends string> = DeepReadonly<Field<T>[]>
@@ -70,7 +72,7 @@ export type Field<T extends string> = {
   // Validations used for field entries
   validations?: Validation[]
   // Field entry component, default: Input
-  fieldType: Checkbox | Select | Input
+  fieldType: Checkbox | Select | MultiSelect | Input
   // UI-facing values shown to user as field examples pre-upload phase
   example?: string
 }
@@ -84,6 +86,12 @@ export type Checkbox = {
 export type Select = {
   type: "select"
   // Options displayed in Select component
+  options: SelectOption[]
+}
+
+export type MultiSelect = {
+  type: "multi_select"
+  // Options displayed in MultiSelect component
   options: SelectOption[]
 }
 

@@ -39,7 +39,8 @@ export const TemplateColumn = <T extends string>({ column, onChange, onSubChange
   const isChecked =
     column.type === ColumnType.matched ||
     column.type === ColumnType.matchedCheckbox ||
-    column.type === ColumnType.matchedSelectOptions
+    column.type === ColumnType.matchedSelectOptions ||
+    column.type === ColumnType.matchedMultiSelectOptions
   const isSelect = "matchedOptions" in column
   const selectOptions = fields.map(({ label, key }) => ({ value: key, label }))
   const selectValue = selectOptions.find(({ value }) => "value" in column && column.value === value)

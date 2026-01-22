@@ -27,6 +27,8 @@ export enum ColumnType {
   matchedCheckbox,
   matchedSelect,
   matchedSelectOptions,
+  matchedMultiSelect,
+  matchedMultiSelectOptions,
 }
 
 export type MatchedOptions<T> = {
@@ -52,6 +54,20 @@ export type MatchedSelectOptionsColumn<T> = {
   value: T
   matchedOptions: MatchedOptions<T>[]
 }
+export type MatchedMultiSelectColumn<T> = {
+  type: ColumnType.matchedMultiSelect
+  index: number
+  header: string
+  value: T
+  matchedOptions: Partial<MatchedOptions<T>>[]
+}
+export type MatchedMultiSelectOptionsColumn<T> = {
+  type: ColumnType.matchedMultiSelectOptions
+  index: number
+  header: string
+  value: T
+  matchedOptions: MatchedOptions<T>[]
+}
 
 export type Column<T extends string> =
   | EmptyColumn
@@ -60,6 +76,8 @@ export type Column<T extends string> =
   | MatchedSwitchColumn<T>
   | MatchedSelectColumn<T>
   | MatchedSelectOptionsColumn<T>
+  | MatchedMultiSelectColumn<T>
+  | MatchedMultiSelectOptionsColumn<T>
 
 export type Columns<T extends string> = Column<T>[]
 
@@ -71,7 +89,8 @@ export const MatchColumnsStep = <T extends string>({
 }: MatchColumnsProps<T>) => {
   const toast = useToast()
   const dataExample = data.slice(0, 2)
-  const { fields, autoMapHeaders, autoMapSelectValues, autoMapDistance, translations } = useRsi<T>()
+  const { fields, autoMapHeaders, autoMapSelectValues, autoMapDistance, translations, multiSelectValueSeparator } =
+    useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
   const [columns, setColumns] = useState<Columns<T>>(
     // Do not remove spread, it indexes empty array elements, otherwise map() skips over them
@@ -87,7 +106,7 @@ export const MatchColumnsStep = <T extends string>({
         columns.map<Column<T>>((column, index) => {
           columnIndex === index ? setColumn(column, field, data) : column
           if (columnIndex === index) {
-            return setColumn(column, field, data, autoMapSelectValues)
+            return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
           } else if (index === existingFieldIndex) {
             toast({
               status: "warning",
@@ -109,6 +128,7 @@ export const MatchColumnsStep = <T extends string>({
       columns,
       data,
       fields,
+      multiSelectValueSeparator,
       toast,
       translations.matchColumnsStep.duplicateColumnWarningDescription,
       translations.matchColumnsStep.duplicateColumnWarningTitle,
@@ -146,22 +166,24 @@ export const MatchColumnsStep = <T extends string>({
       setShowUnmatchedFieldsAlert(true)
     } else {
       setIsLoading(true)
-      await onContinue(normalizeTableData(columns, data, fields), data, columns)
+      await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator), data, columns)
       setIsLoading(false)
     }
-  }, [unmatchedRequiredFields.length, onContinue, columns, data, fields])
+  }, [unmatchedRequiredFields.length, onContinue, columns, data, fields, multiSelectValueSeparator])
 
   const handleAlertOnContinue = useCallback(async () => {
     setShowUnmatchedFieldsAlert(false)
     setIsLoading(true)
-    await onContinue(normalizeTableData(columns, data, fields), data, columns)
+    await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator), data, columns)
     setIsLoading(false)
-  }, [onContinue, columns, data, fields])
+  }, [onContinue, columns, data, fields, multiSelectValueSeparator])
 
   useEffect(
     () => {
       if (autoMapHeaders) {
-        setColumns(getMatchedColumns(columns, fields, data, autoMapDistance, autoMapSelectValues))
+        setColumns(
+          getMatchedColumns(columns, fields, data, autoMapDistance, autoMapSelectValues, multiSelectValueSeparator),
+        )
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
