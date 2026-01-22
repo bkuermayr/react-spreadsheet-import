@@ -6,7 +6,7 @@ import type { themeOverrides } from "../../theme"
 
 interface Props {
   onChange: (values: readonly SelectOption[]) => void
-  value: SelectOption[]
+  value: readonly SelectOption[]
   options: readonly SelectOption[]
 }
 
