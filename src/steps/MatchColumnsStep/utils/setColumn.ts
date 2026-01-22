@@ -21,7 +21,7 @@ export const setColumn = <T extends string>(
             return value ? ({ ...record, value } as MatchedOptions<T>) : (record as MatchedOptions<T>)
           })
         : uniqueData
-      const allMatched = matchedOptions.filter((o) => o.value).length == uniqueData?.length
+      const allMatched = matchedOptions.filter((o) => o.value).length === uniqueData?.length
 
       return {
         ...oldColumn,
@@ -42,7 +42,7 @@ export const setColumn = <T extends string>(
             return value ? ({ ...record, value } as MatchedOptions<T>) : (record as MatchedOptions<T>)
           })
         : uniqueData
-      const allMatched = matchedOptions.filter((o) => o.value).length == uniqueData?.length
+      const allMatched = matchedOptions.filter((o) => o.value).length === uniqueData?.length
 
       return {
         ...oldColumn,

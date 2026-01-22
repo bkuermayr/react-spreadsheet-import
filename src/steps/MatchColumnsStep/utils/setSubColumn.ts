@@ -21,10 +21,10 @@ export const setSubColumn = <T>(
   | MatchedMultiSelectColumn<T>
   | MatchedMultiSelectOptionsColumn<T> => {
   const options = oldColumn.matchedOptions.map((option) => (option.entry === entry ? { ...option, value } : option))
-  const allMathced = options.every(({ value }) => !!value)
+  const allMatched = options.every(({ value }) => !!value)
 
   if (oldColumn.type === ColumnType.matchedMultiSelect || oldColumn.type === ColumnType.matchedMultiSelectOptions) {
-    if (allMathced) {
+    if (allMatched) {
       return {
         ...oldColumn,
         matchedOptions: options as MatchedOptions<T>[],
@@ -35,7 +35,7 @@ export const setSubColumn = <T>(
     }
   }
 
-  if (allMathced) {
+  if (allMatched) {
     return { ...oldColumn, matchedOptions: options as MatchedOptions<T>[], type: ColumnType.matchedSelectOptions }
   } else {
     return { ...oldColumn, matchedOptions: options as MatchedOptions<T>[], type: ColumnType.matchedSelect }
