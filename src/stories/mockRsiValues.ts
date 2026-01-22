@@ -80,6 +80,21 @@ const fields = [
     },
     example: "true",
   },
+  {
+    label: "Skills",
+    key: "skills",
+    alternateMatches: ["skill", "abilities"],
+    fieldType: {
+      type: "multi_select",
+      options: [
+        { label: "JavaScript", value: "js" },
+        { label: "TypeScript", value: "ts" },
+        { label: "React", value: "react" },
+        { label: "Node.js", value: "node" },
+      ],
+    },
+    example: "JavaScript;TypeScript",
+  },
 ] as const
 
 const mockComponentBehaviourForTypes = <T extends string>(props: RsiProps<T>) => props
@@ -130,6 +145,7 @@ export const editableTableInitialData = [
     age: "123123",
     team: "one",
     is_manager: true,
+    skills: ["js", "ts"],
   },
   {
     name: "Hello",
@@ -137,6 +153,7 @@ export const editableTableInitialData = [
     age: "12312zsas3",
     team: "two",
     is_manager: true,
+    skills: ["react"],
   },
   {
     name: "Whooaasdasdawdawdawdiouasdiuasdisdhasd",
@@ -144,6 +161,7 @@ export const editableTableInitialData = [
     age: "123123",
     team: undefined,
     is_manager: false,
+    skills: ["node", "js"],
   },
   {
     name: "Goodbye",
@@ -151,6 +169,7 @@ export const editableTableInitialData = [
     age: "111",
     team: "two",
     is_manager: true,
+    skills: [],
   },
 ]
 

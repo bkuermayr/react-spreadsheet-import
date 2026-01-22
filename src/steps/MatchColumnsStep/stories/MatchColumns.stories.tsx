@@ -24,10 +24,32 @@ const mockData = [
   ["10", "Jere", "Shier", "jshier8@comcast.net", "Agender", "10.143.62.161"],
 ]
 
+const mockDataWithSkills = [
+  ["name", "surname", "skills", "team"],
+  ["John", "Doe", "JavaScript;TypeScript", "Team One"],
+  ["Jane", "Smith", "React;Node.js", "Team Two"],
+  ["Bob", "Johnson", "JavaScript;React;TypeScript", "Team One"],
+  ["Alice", "Brown", "Node.js", "Team Two"],
+]
+
 export const Basic = () => (
   <Providers theme={defaultTheme} rsiValues={mockRsiValues}>
     <ModalWrapper isOpen={true} onClose={() => {}}>
       <MatchColumnsStep headerValues={mockData[0] as string[]} data={mockData.slice(1)} onContinue={() => {}} />
+    </ModalWrapper>
+  </Providers>
+)
+
+export const WithMultiSelect = () => (
+  <Providers theme={defaultTheme} rsiValues={{ ...mockRsiValues, autoMapSelectValues: true }}>
+    <ModalWrapper isOpen={true} onClose={() => {}}>
+      <MatchColumnsStep
+        headerValues={mockDataWithSkills[0] as string[]}
+        data={mockDataWithSkills.slice(1)}
+        onContinue={(data) => {
+          console.log("Data with multi_select:", data)
+        }}
+      />
     </ModalWrapper>
   </Providers>
 )

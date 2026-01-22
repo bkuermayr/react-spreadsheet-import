@@ -444,6 +444,114 @@ describe("Match Columns automatic matching", () => {
     })
     expect(onContinue.mock.calls[0][0]).toEqual(result)
   })
+
+  test("AutoMatches multi_select values on mount", async () => {
+    const header = ["tags", "Email"]
+    const options = [
+      { label: "TagA", value: "a" },
+      { label: "TagB", value: "b" },
+      { label: "TagC", value: "c" },
+    ]
+    const data = [
+      ["TagA;TagB", "j@j.com"],
+      ["TagC", "dane@bane.com"],
+      ["TagA;TagC", "kane@linch.com"],
+      ["Unknown", "none@none.com"],
+    ]
+    const result = [{ tags: ["a", "b"] }, { tags: ["c"] }, { tags: ["a", "c"] }, { tags: [] }]
+
+    const multiSelectFields = [
+      {
+        label: "Tags",
+        key: "tags",
+        alternateMatches: ["tags"],
+        fieldType: {
+          type: "multi_select",
+          options,
+        },
+        example: "TagA;TagB",
+      },
+    ] as const
+
+    const onContinue = jest.fn()
+    render(
+      <Providers
+        theme={defaultTheme}
+        rsiValues={{ ...mockRsiValues, fields: multiSelectFields, autoMapSelectValues: true }}
+      >
+        <ModalWrapper isOpen={true} onClose={() => {}}>
+          <MatchColumnsStep headerValues={header} data={data} onContinue={onContinue} />
+        </ModalWrapper>
+      </Providers>,
+    )
+
+    expect(screen.getByText(/1 Unmatched/)).toBeInTheDocument()
+
+    const nextButton = screen.getByRole("button", {
+      name: "Next",
+    })
+
+    await userEvent.click(nextButton)
+
+    await waitFor(() => {
+      expect(onContinue).toBeCalled()
+    })
+    expect(onContinue.mock.calls[0][0]).toEqual(result)
+  })
+
+  test("MultiSelect uses custom separator", async () => {
+    const header = ["tags", "Email"]
+    const options = [
+      { label: "TagA", value: "a" },
+      { label: "TagB", value: "b" },
+    ]
+    const data = [
+      ["TagA|TagB", "j@j.com"],
+      ["TagA", "dane@bane.com"],
+    ]
+    const result = [{ tags: ["a", "b"] }, { tags: ["a"] }]
+
+    const multiSelectFields = [
+      {
+        label: "Tags",
+        key: "tags",
+        alternateMatches: ["tags"],
+        fieldType: {
+          type: "multi_select",
+          options,
+        },
+        example: "TagA|TagB",
+      },
+    ] as const
+
+    const onContinue = jest.fn()
+    render(
+      <Providers
+        theme={defaultTheme}
+        rsiValues={{
+          ...mockRsiValues,
+          fields: multiSelectFields,
+          autoMapSelectValues: true,
+          multiSelectValueSeparator: "|",
+        }}
+      >
+        <ModalWrapper isOpen={true} onClose={() => {}}>
+          <MatchColumnsStep headerValues={header} data={data} onContinue={onContinue} />
+        </ModalWrapper>
+      </Providers>,
+    )
+
+    const nextButton = screen.getByRole("button", {
+      name: "Next",
+    })
+
+    await userEvent.click(nextButton)
+
+    await waitFor(() => {
+      expect(onContinue).toBeCalled()
+    })
+    expect(onContinue.mock.calls[0][0]).toEqual(result)
+  })
 })
 
 describe("Match Columns general tests", () => {
