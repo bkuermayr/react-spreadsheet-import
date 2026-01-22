@@ -51,6 +51,10 @@ export type RsiProps<T extends string> = {
   parseRaw?: boolean
   // Use for right-to-left (RTL) support
   rtl?: boolean
+  // AI API key for automap with AI feature. Default: uses AI_GATEWAY_API_KEY env variable
+  aiApiKey?: string
+  // AI model to use for automap. Default: "openai/gpt-5-nano"
+  aiModel?: string
 }
 
 export type RawData = Array<string | undefined>

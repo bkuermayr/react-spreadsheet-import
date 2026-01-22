@@ -8,6 +8,7 @@ import {
   Box,
   AccordionPanel,
   useStyleConfig,
+  Button,
 } from "@chakra-ui/react"
 import { useRsi } from "../../../hooks/useRsi"
 import type { Column } from "../MatchColumnsStep"
@@ -29,10 +30,18 @@ const getAccordionTitle = <T extends string>(fields: Fields<T>, column: Column<T
 type TemplateColumnProps<T extends string> = {
   onChange: (val: T, index: number) => void
   onSubChange: (val: T, index: number, option: string) => void
+  onAiAutoMap?: (columnIndex: number) => Promise<void>
   column: Column<T>
+  isAiMapping?: boolean
 }
 
-export const TemplateColumn = <T extends string>({ column, onChange, onSubChange }: TemplateColumnProps<T>) => {
+export const TemplateColumn = <T extends string>({
+  column,
+  onChange,
+  onSubChange,
+  onAiAutoMap,
+  isAiMapping = false,
+}: TemplateColumnProps<T>) => {
   const { translations, fields } = useRsi<T>()
   const styles = useStyleConfig("MatchColumnsStep") as Styles
   const isIgnored = column.type === ColumnType.ignored
@@ -44,6 +53,15 @@ export const TemplateColumn = <T extends string>({ column, onChange, onSubChange
   const isSelect = "matchedOptions" in column
   const selectOptions = fields.map(({ label, key }) => ({ value: key, label }))
   const selectValue = selectOptions.find(({ value }) => "value" in column && column.value === value)
+
+  // Check if there are any unmatched options
+  const hasUnmatchedOptions = isSelect && column.matchedOptions.some((option) => !option.value)
+
+  const handleAiAutoMap = async () => {
+    if (onAiAutoMap) {
+      await onAiAutoMap(column.index)
+    }
+  }
 
   return (
     <Flex minH={10} w="100%" flexDir="column" justifyContent="center">
@@ -82,6 +100,20 @@ export const TemplateColumn = <T extends string>({ column, onChange, onSubChange
                     </Box>
                   </AccordionButton>
                   <AccordionPanel pb={4} pr={3} display="flex" flexDir="column">
+                    {hasUnmatchedOptions && onAiAutoMap && (
+                      <Box mb={3}>
+                        <Button
+                          size="sm"
+                          colorScheme="purple"
+                          onClick={handleAiAutoMap}
+                          isLoading={isAiMapping}
+                          loadingText={translations.matchColumnsStep.aiMappingInProgress}
+                          data-testid="ai-automap-button"
+                        >
+                          {translations.matchColumnsStep.autoMapWithAiButtonTitle}
+                        </Button>
+                      </Box>
+                    )}
                     {column.matchedOptions.map((option) => (
                       <SubMatchingSelect option={option} column={column} onSubChange={onSubChange} key={option.entry} />
                     ))}
