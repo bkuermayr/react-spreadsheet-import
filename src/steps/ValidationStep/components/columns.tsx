@@ -13,7 +13,10 @@ function autoFocusAndSelect(input: HTMLInputElement | null) {
   input?.select()
 }
 
-export const generateColumns = <T extends string>(fields: Fields<T>): Column<Data<T> & Meta>[] => [
+export const generateColumns = <T extends string>(
+  fields: Fields<T>,
+  multiSelectValueSeparator = ";",
+): Column<Data<T> & Meta>[] => [
   {
     key: SELECT_COLUMN_KEY,
     name: "",
@@ -129,6 +132,15 @@ export const generateColumns = <T extends string>(fields: Fields<T>): Column<Dat
             component = (
               <Box minWidth="100%" minHeight="100%" overflow="hidden" textOverflow="ellipsis">
                 {column.fieldType.options.find((option) => option.value === row[column.key as T])?.label || null}
+              </Box>
+            )
+            break
+          case "multi_select":
+            component = (
+              <Box minWidth="100%" minHeight="100%" overflow="hidden" textOverflow="ellipsis">
+                {Array.isArray(row[column.key as T])
+                  ? (row[column.key as T] as string[]).join(multiSelectValueSeparator)
+                  : row[column.key as T]}
               </Box>
             )
             break
