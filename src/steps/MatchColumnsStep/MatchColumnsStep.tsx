@@ -4,7 +4,7 @@ import { UserTableColumn } from "./components/UserTableColumn"
 import { useRsi } from "../../hooks/useRsi"
 import { TemplateColumn } from "./components/TemplateColumn"
 import { ColumnGrid } from "./components/ColumnGrid"
-import { setColumn } from "./utils/setColumn"
+import { setColumn, setColumnWithUniqueValues } from "./utils/setColumn"
 import { setIgnoreColumn } from "./utils/setIgnoreColumn"
 import { setSubColumn } from "./utils/setSubColumn"
 import { normalizeTableData } from "./utils/normalizeTableData"
@@ -101,9 +101,11 @@ export const MatchColumnsStep = <T extends string>({
     aiApiKey,
     aiModel,
     customValueMappingPrompt,
+    fetchColumnUniqueValues,
   } = useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
   const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
+  const [fetchingColumnIndex, setFetchingColumnIndex] = useState<number | null>(null)
   const [columns, setColumns] = useState<Columns<T>>(
     // Do not remove spread, it indexes empty array elements, otherwise map() skips over them
     ([...headerValues] as string[]).map((value, index) => ({ type: ColumnType.empty, index, header: value ?? "" })),
@@ -111,29 +113,76 @@ export const MatchColumnsStep = <T extends string>({
   const [showUnmatchedFieldsAlert, setShowUnmatchedFieldsAlert] = useState(false)
 
   const onChange = useCallback(
-    (value: T, columnIndex: number) => {
+    async (value: T, columnIndex: number) => {
       const field = fields.find((field) => field.key === value) as unknown as Field<T>
       const existingFieldIndex = columns.findIndex((column) => "value" in column && column.value === field.key)
-      setColumns(
-        columns.map<Column<T>>((column, index) => {
-          columnIndex === index ? setColumn(column, field, data) : column
-          if (columnIndex === index) {
-            return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
-          } else if (index === existingFieldIndex) {
-            toast({
-              status: "warning",
-              variant: "left-accent",
-              position: "bottom-left",
-              title: translations.matchColumnsStep.duplicateColumnWarningTitle,
-              description: translations.matchColumnsStep.duplicateColumnWarningDescription,
-              isClosable: true,
-            })
-            return setColumn(column)
-          } else {
-            return column
-          }
-        }),
-      )
+      
+      // Check if this is a select/multi_select field and we have fetchColumnUniqueValues
+      const isSelectField = field?.fieldType.type === "select" || field?.fieldType.type === "multi_select"
+      
+      if (isSelectField && fetchColumnUniqueValues) {
+        // Fetch unique values on-demand for select fields
+        setFetchingColumnIndex(columnIndex)
+        try {
+          const uniqueValues = await fetchColumnUniqueValues(columnIndex)
+          setColumns(
+            columns.map<Column<T>>((column, index) => {
+              if (columnIndex === index) {
+                return setColumnWithUniqueValues(column, field, uniqueValues, autoMapSelectValues, multiSelectValueSeparator)
+              } else if (index === existingFieldIndex) {
+                toast({
+                  status: "warning",
+                  variant: "left-accent",
+                  position: "bottom-left",
+                  title: translations.matchColumnsStep.duplicateColumnWarningTitle,
+                  description: translations.matchColumnsStep.duplicateColumnWarningDescription,
+                  isClosable: true,
+                })
+                return setColumn(column)
+              } else {
+                return column
+              }
+            }),
+          )
+        } catch (error) {
+          console.error("Failed to fetch column unique values:", error)
+          // Fallback to using sample data
+          setColumns(
+            columns.map<Column<T>>((column, index) => {
+              if (columnIndex === index) {
+                return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
+              } else if (index === existingFieldIndex) {
+                return setColumn(column)
+              } else {
+                return column
+              }
+            }),
+          )
+        } finally {
+          setFetchingColumnIndex(null)
+        }
+      } else {
+        // Use sample data for non-select fields or when fetchColumnUniqueValues is not provided
+        setColumns(
+          columns.map<Column<T>>((column, index) => {
+            if (columnIndex === index) {
+              return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
+            } else if (index === existingFieldIndex) {
+              toast({
+                status: "warning",
+                variant: "left-accent",
+                position: "bottom-left",
+                title: translations.matchColumnsStep.duplicateColumnWarningTitle,
+                description: translations.matchColumnsStep.duplicateColumnWarningDescription,
+                isClosable: true,
+              })
+              return setColumn(column)
+            } else {
+              return column
+            }
+          }),
+        )
+      }
     },
     [
       autoMapSelectValues,
@@ -144,6 +193,7 @@ export const MatchColumnsStep = <T extends string>({
       toast,
       translations.matchColumnsStep.duplicateColumnWarningDescription,
       translations.matchColumnsStep.duplicateColumnWarningTitle,
+      fetchColumnUniqueValues,
     ],
   )
 

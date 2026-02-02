@@ -58,6 +58,9 @@ export type RsiProps<T extends string> = {
   // Custom prompt for AI value mapping. Receives optionsList, entriesList, and entriesCount as parameters.
   // Must return a prompt that produces JSON in format: {"mappings":[{"entry":"text","value":"matched or null"},...]}
   customValueMappingPrompt?: (optionsList: string, entriesList: string, entriesCount: number) => string
+  // Function to fetch unique values for a column on-demand (for large file imports)
+  // Called when mapping to select/multi_select fields to get ALL unique values from the full dataset
+  fetchColumnUniqueValues?: (columnIndex: number) => Promise<string[]>
 }
 
 export type RawData = Array<string | undefined>
