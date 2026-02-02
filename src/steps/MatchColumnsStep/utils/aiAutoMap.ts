@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 import type { MatchedOptions } from "../MatchColumnsStep"
 import type { SelectOption } from "../../../types"
 
@@ -26,13 +27,24 @@ export const aiAutoMapSelectValues = async <T extends string>({
   entries,
   fieldOptions,
   aiApiKey,
-  aiModel = "openai/gpt-5-mini",
+  aiModel = "gpt-4o-mini",
   customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
-  // AI SDK uses the model string directly (e.g., "openai/gpt-5-mini", "gemini-3-pro")
-  // The API key is configured via environment variables or AI Gateway
+  // Use OpenAI provider with the provided API key
+  if (!aiApiKey) {
+    console.error("AI API key is missing")
+    return {
+      mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
+      error: "AI API key is missing. Please provide aiApiKey prop.",
+    }
+  }
 
   try {
+    // Create OpenAI provider with the provided API key
+    const openai = createOpenAI({
+      apiKey: aiApiKey,
+    })
+
     // Prepare options for the prompt
     const optionsList = fieldOptions.map((opt) => `- "${opt.label}" (value: "${opt.value}")`).join("\n")
     const entriesList = entries.map((e, i) => `${i + 1}. "${e}"`).join("\n")
@@ -58,10 +70,9 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
       ? customValueMappingPrompt(optionsList, entriesList, entries.length)
       : defaultPrompt
 
-    // Use AI SDK with model string directly - works with AI Gateway
-    // Model format: "provider/model" (e.g., "openai/gpt-5-mini", "gemini-3-pro")
+    // Use the OpenAI model with the configured provider
     const { text } = await generateText({
-      model: aiModel as any,
+      model: openai(aiModel),
       prompt,
     })
 

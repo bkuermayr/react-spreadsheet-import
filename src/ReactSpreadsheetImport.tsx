@@ -22,7 +22,7 @@ export const defaultRSIProps: Partial<RsiProps<any>> = {
   dateFormat: "yyyy-mm-dd", // ISO 8601,
   parseRaw: true,
   multiSelectValueSeparator: ";",
-  aiModel: "openai/gpt-5-nano",
+  aiModel: "gpt-4o-mini",
   autoTriggerAiValueMapping: false,
 } as const
 
