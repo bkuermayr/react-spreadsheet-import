@@ -1,4 +1,3 @@
-import { createOpenAI } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import type { MatchedOptions } from "../MatchColumnsStep"
 import type { SelectOption } from "../../../types"
@@ -27,31 +26,13 @@ export const aiAutoMapSelectValues = async <T extends string>({
   entries,
   fieldOptions,
   aiApiKey,
-  aiModel = "openai/gpt-5-nano",
+  aiModel = "openai/gpt-5-mini",
   customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
-  // Try to get API key from prop first, then fall back to environment variable
-  // Note: In browser environments, process.env may not be available - the aiApiKey prop should be used
-  const apiKey =
-    aiApiKey || (typeof process !== "undefined" && process.env ? process.env.AI_GATEWAY_API_KEY : undefined)
-
-  if (!apiKey) {
-    return {
-      mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
-      error: "AI API key is missing",
-    }
-  }
+  // AI SDK uses the model string directly (e.g., "openai/gpt-5-mini", "gemini-3-pro")
+  // The API key is configured via environment variables or AI Gateway
 
   try {
-    // Parse the model string (format: "provider/model" or just "model")
-    const modelParts = aiModel.split("/")
-    const actualModel = modelParts.length > 1 ? modelParts[1] : aiModel
-
-    // Create OpenAI provider with the API key
-    const openai = createOpenAI({
-      apiKey,
-    })
-
     // Prepare options for the prompt
     const optionsList = fieldOptions.map((opt) => `- "${opt.label}" (value: "${opt.value}")`).join("\n")
     const entriesList = entries.map((e, i) => `${i + 1}. "${e}"`).join("\n")
@@ -77,8 +58,10 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
       ? customValueMappingPrompt(optionsList, entriesList, entries.length)
       : defaultPrompt
 
+    // Use AI SDK with model string directly - works with AI Gateway
+    // Model format: "provider/model" (e.g., "openai/gpt-5-mini", "gemini-3-pro")
     const { text } = await generateText({
-      model: openai(actualModel),
+      model: aiModel as any,
       prompt,
     })
 

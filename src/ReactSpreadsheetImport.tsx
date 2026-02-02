@@ -23,6 +23,7 @@ export const defaultRSIProps: Partial<RsiProps<any>> = {
   parseRaw: true,
   multiSelectValueSeparator: ";",
   aiModel: "openai/gpt-5-nano",
+  autoTriggerAiValueMapping: false,
 } as const
 
 export const ReactSpreadsheetImport = <T extends string>(propsWithoutDefaults: RsiProps<T>) => {

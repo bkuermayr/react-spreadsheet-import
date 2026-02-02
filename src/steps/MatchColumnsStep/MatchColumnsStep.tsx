@@ -102,16 +102,22 @@ export const MatchColumnsStep = <T extends string>({
     aiModel,
     customValueMappingPrompt,
     fetchColumnUniqueValues,
+    autoTriggerAiValueMapping,
   } = useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
   const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
   const [fetchingColumnIndex, setFetchingColumnIndex] = useState<number | null>(null)
+  // Track columns that have been auto-mapped to avoid repeated auto-mapping
+  const [autoMappedColumns, setAutoMappedColumns] = useState<Set<number>>(new Set())
   const [columns, setColumns] = useState<Columns<T>>(
     // Do not remove spread, it indexes empty array elements, otherwise map() skips over them
     ([...headerValues] as string[]).map((value, index) => ({ type: ColumnType.empty, index, header: value ?? "" })),
   )
   const [showUnmatchedFieldsAlert, setShowUnmatchedFieldsAlert] = useState(false)
 
+  // Queue of columns pending AI value mapping (for auto-trigger feature)
+  const [pendingAiMappingQueue, setPendingAiMappingQueue] = useState<number[]>([])
+  
   const onChange = useCallback(
     async (value: T, columnIndex: number) => {
       const field = fields.find((field) => field.key === value) as unknown as Field<T>
@@ -120,53 +126,16 @@ export const MatchColumnsStep = <T extends string>({
       // Check if this is a select/multi_select field and we have fetchColumnUniqueValues
       const isSelectField = field?.fieldType.type === "select" || field?.fieldType.type === "multi_select"
       
+      let newColumns: Columns<T>
+      
       if (isSelectField && fetchColumnUniqueValues) {
         // Fetch unique values on-demand for select fields
         setFetchingColumnIndex(columnIndex)
         try {
           const uniqueValues = await fetchColumnUniqueValues(columnIndex)
-          setColumns(
-            columns.map<Column<T>>((column, index) => {
-              if (columnIndex === index) {
-                return setColumnWithUniqueValues(column, field, uniqueValues, autoMapSelectValues, multiSelectValueSeparator)
-              } else if (index === existingFieldIndex) {
-                toast({
-                  status: "warning",
-                  variant: "left-accent",
-                  position: "bottom-left",
-                  title: translations.matchColumnsStep.duplicateColumnWarningTitle,
-                  description: translations.matchColumnsStep.duplicateColumnWarningDescription,
-                  isClosable: true,
-                })
-                return setColumn(column)
-              } else {
-                return column
-              }
-            }),
-          )
-        } catch (error) {
-          console.error("Failed to fetch column unique values:", error)
-          // Fallback to using sample data
-          setColumns(
-            columns.map<Column<T>>((column, index) => {
-              if (columnIndex === index) {
-                return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
-              } else if (index === existingFieldIndex) {
-                return setColumn(column)
-              } else {
-                return column
-              }
-            }),
-          )
-        } finally {
-          setFetchingColumnIndex(null)
-        }
-      } else {
-        // Use sample data for non-select fields or when fetchColumnUniqueValues is not provided
-        setColumns(
-          columns.map<Column<T>>((column, index) => {
+          newColumns = columns.map<Column<T>>((column, index) => {
             if (columnIndex === index) {
-              return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
+              return setColumnWithUniqueValues(column, field, uniqueValues, autoMapSelectValues, multiSelectValueSeparator)
             } else if (index === existingFieldIndex) {
               toast({
                 status: "warning",
@@ -180,8 +149,53 @@ export const MatchColumnsStep = <T extends string>({
             } else {
               return column
             }
-          }),
-        )
+          })
+          setColumns(newColumns)
+        } catch (error) {
+          console.error("Failed to fetch column unique values:", error)
+          // Fallback to using sample data
+          newColumns = columns.map<Column<T>>((column, index) => {
+            if (columnIndex === index) {
+              return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
+            } else if (index === existingFieldIndex) {
+              return setColumn(column)
+            } else {
+              return column
+            }
+          })
+          setColumns(newColumns)
+        } finally {
+          setFetchingColumnIndex(null)
+        }
+      } else {
+        // Use sample data for non-select fields or when fetchColumnUniqueValues is not provided
+        newColumns = columns.map<Column<T>>((column, index) => {
+          if (columnIndex === index) {
+            return setColumn(column, field, data, autoMapSelectValues, multiSelectValueSeparator)
+          } else if (index === existingFieldIndex) {
+            toast({
+              status: "warning",
+              variant: "left-accent",
+              position: "bottom-left",
+              title: translations.matchColumnsStep.duplicateColumnWarningTitle,
+              description: translations.matchColumnsStep.duplicateColumnWarningDescription,
+              isClosable: true,
+            })
+            return setColumn(column)
+          } else {
+            return column
+          }
+        })
+        setColumns(newColumns)
+      }
+      
+      // Auto-trigger AI value mapping for select/multi_select fields if enabled
+      // Add to queue for processing (will be handled by useEffect)
+      if (autoTriggerAiValueMapping && aiApiKey && isSelectField && !autoMappedColumns.has(columnIndex)) {
+        // Mark this column as auto-mapped to prevent repeated triggers
+        setAutoMappedColumns((prev) => new Set([...prev, columnIndex]))
+        // Add to pending queue for AI mapping
+        setPendingAiMappingQueue((prev) => [...prev, columnIndex])
       }
     },
     [
@@ -194,6 +208,9 @@ export const MatchColumnsStep = <T extends string>({
       translations.matchColumnsStep.duplicateColumnWarningDescription,
       translations.matchColumnsStep.duplicateColumnWarningTitle,
       fetchColumnUniqueValues,
+      autoTriggerAiValueMapping,
+      aiApiKey,
+      autoMappedColumns,
     ],
   )
 
@@ -325,13 +342,68 @@ export const MatchColumnsStep = <T extends string>({
   useEffect(
     () => {
       if (autoMapHeaders) {
-        setColumns(
-          getMatchedColumns(columns, fields, data, autoMapDistance, autoMapSelectValues, multiSelectValueSeparator),
-        )
+        const matchedColumns = getMatchedColumns(columns, fields, data, autoMapDistance, autoMapSelectValues, multiSelectValueSeparator)
+        setColumns(matchedColumns)
+        
+        // If auto-trigger AI value mapping is enabled, queue all select/multi_select columns
+        // that have unmatched options for AI mapping
+        if (autoTriggerAiValueMapping && aiApiKey) {
+          const columnsToAutoMap: number[] = []
+          matchedColumns.forEach((column, index) => {
+            if ("matchedOptions" in column && column.matchedOptions.some((opt) => !opt.value)) {
+              columnsToAutoMap.push(index)
+            }
+          })
+          if (columnsToAutoMap.length > 0) {
+            // Mark all columns as auto-mapped
+            setAutoMappedColumns(new Set(columnsToAutoMap))
+            // Add to pending queue
+            setPendingAiMappingQueue(columnsToAutoMap)
+          }
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
+  )
+  
+  // Process pending AI mapping queue - handles auto-trigger for select/multi_select fields
+  useEffect(
+    () => {
+      const processQueue = async () => {
+        if (pendingAiMappingQueue.length === 0 || aiMappingColumnIndex !== null) {
+          return
+        }
+        
+        // Process the first column in the queue
+        const columnIndex = pendingAiMappingQueue[0]
+        const column = columns[columnIndex]
+        
+        // Check if this column has unmatched options
+        if (!("matchedOptions" in column) || !("value" in column)) {
+          // Remove from queue and continue
+          setPendingAiMappingQueue((prev) => prev.slice(1))
+          return
+        }
+        
+        const hasUnmatchedOptions = column.matchedOptions.some((opt) => !opt.value)
+        if (!hasUnmatchedOptions) {
+          // No unmatched options, remove from queue
+          setPendingAiMappingQueue((prev) => prev.slice(1))
+          return
+        }
+        
+        // Trigger AI mapping for this column
+        await onAiAutoMap(columnIndex)
+        
+        // Remove from queue after completion
+        setPendingAiMappingQueue((prev) => prev.slice(1))
+      }
+      
+      processQueue()
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingAiMappingQueue, aiMappingColumnIndex, columns],
   )
 
   return (

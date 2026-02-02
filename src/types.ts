@@ -61,6 +61,9 @@ export type RsiProps<T extends string> = {
   // Function to fetch unique values for a column on-demand (for large file imports)
   // Called when mapping to select/multi_select fields to get ALL unique values from the full dataset
   fetchColumnUniqueValues?: (columnIndex: number) => Promise<string[]>
+  // When true, automatically triggers AI value mapping for select/multi_select fields when a column is mapped
+  // Requires aiApiKey to be set. Default: false
+  autoTriggerAiValueMapping?: boolean
 }
 
 export type RawData = Array<string | undefined>
