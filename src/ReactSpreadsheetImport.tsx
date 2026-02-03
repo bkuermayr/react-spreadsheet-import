@@ -24,6 +24,7 @@ export const defaultRSIProps: Partial<RsiProps<any>> = {
   multiSelectValueSeparator: ";",
   aiModel: "gpt-4o-mini",
   autoTriggerAiValueMapping: false,
+  passUnmappedValues: false,
 } as const
 
 export const ReactSpreadsheetImport = <T extends string>(propsWithoutDefaults: RsiProps<T>) => {

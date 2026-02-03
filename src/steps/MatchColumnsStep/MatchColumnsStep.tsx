@@ -103,6 +103,7 @@ export const MatchColumnsStep = <T extends string>({
     customValueMappingPrompt,
     fetchColumnUniqueValues,
     autoTriggerAiValueMapping,
+    passUnmappedValues,
   } = useRsi<T>()
   const [isLoading, setIsLoading] = useState(false)
   const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
@@ -327,17 +328,17 @@ export const MatchColumnsStep = <T extends string>({
       setShowUnmatchedFieldsAlert(true)
     } else {
       setIsLoading(true)
-      await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator), data, columns)
+      await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator, passUnmappedValues), data, columns)
       setIsLoading(false)
     }
-  }, [unmatchedRequiredFields.length, onContinue, columns, data, fields, multiSelectValueSeparator])
+  }, [unmatchedRequiredFields.length, onContinue, columns, data, fields, multiSelectValueSeparator, passUnmappedValues])
 
   const handleAlertOnContinue = useCallback(async () => {
     setShowUnmatchedFieldsAlert(false)
     setIsLoading(true)
-    await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator), data, columns)
+    await onContinue(normalizeTableData(columns, data, fields, multiSelectValueSeparator, passUnmappedValues), data, columns)
     setIsLoading(false)
-  }, [onContinue, columns, data, fields, multiSelectValueSeparator])
+  }, [onContinue, columns, data, fields, multiSelectValueSeparator, passUnmappedValues])
 
   useEffect(
     () => {

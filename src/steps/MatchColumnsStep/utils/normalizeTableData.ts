@@ -8,6 +8,7 @@ export const normalizeTableData = <T extends string>(
   data: RawData[],
   fields: Fields<T>,
   multiSelectValueSeparator = ";",
+  passUnmappedValues = false,
 ) =>
   data.map((row) =>
     columns.reduce((acc, column, index) => {
@@ -33,7 +34,8 @@ export const normalizeTableData = <T extends string>(
         case ColumnType.matchedSelect:
         case ColumnType.matchedSelectOptions: {
           const matchedOption = column.matchedOptions.find(({ entry }) => entry === curr)
-          acc[column.value] = matchedOption?.value || undefined
+          // When passUnmappedValues is true, use the original value if no mapping exists
+          acc[column.value] = matchedOption?.value || (passUnmappedValues && curr ? curr : undefined)
           return acc
         }
         case ColumnType.matchedMultiSelect:
@@ -46,7 +48,8 @@ export const normalizeTableData = <T extends string>(
           const mappedValues: string[] = values
             .map((v) => {
               const matchedOption = column.matchedOptions.find(({ entry }) => entry === v)
-              return matchedOption?.value as string | undefined
+              // When passUnmappedValues is true, use the original value if no mapping exists
+              return matchedOption?.value || (passUnmappedValues ? v : undefined) as string | undefined
             })
             .filter((v): v is string => v !== undefined)
           acc[column.value] = mappedValues

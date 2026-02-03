@@ -64,6 +64,9 @@ export type RsiProps<T extends string> = {
   // When true, automatically triggers AI value mapping for select/multi_select fields when a column is mapped
   // Requires aiApiKey to be set. Default: false
   autoTriggerAiValueMapping?: boolean
+  // When true, unmapped select/multi_select values are passed through as-is instead of being filtered out.
+  // Useful for "create values on the fly" scenarios where new options should be allowed. Default: false
+  passUnmappedValues?: boolean
 }
 
 export type RawData = Array<string | undefined>
