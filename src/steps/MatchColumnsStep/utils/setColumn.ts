@@ -33,7 +33,7 @@ export const setColumn = <T extends string>(
     case "multi_select": {
       const fieldOptions = field.fieldType.options
       const separator = multiSelectValueSeparator || ";"
-      const uniqueData = uniqueEntriesWithSeparator(data || [], oldColumn.index, separator) as MatchedOptions<T>[]
+      const uniqueData = uniqueEntriesWithSeparator(data || [], oldColumn.index, separator, field.key) as MatchedOptions<T>[]
       const matchedOptions = autoMapSelectValues
         ? uniqueData.map((record) => {
             const value = fieldOptions.find(
@@ -96,7 +96,19 @@ export const setColumnWithUniqueValues = <T extends string>(
       const fieldOptions = field.fieldType.options
       const separator = multiSelectValueSeparator || ";"
       // For multi_select with pre-fetched values, values are already split by the server
-      const uniqueData = uniqueValues.map((entry) => ({ entry })) as MatchedOptions<T>[]
+      // Apply category leaf extraction for "categories" field
+      const processedValues = field.key === "categories" 
+        ? uniqueValues.map((entry) => {
+            if (entry.includes(" > ")) {
+              const segments = entry.split(" > ")
+              return segments[segments.length - 1].trim()
+            }
+            return entry
+          })
+        : uniqueValues
+      // Remove duplicates after leaf extraction
+      const deduplicatedValues = [...new Set(processedValues)]
+      const uniqueData = deduplicatedValues.map((entry) => ({ entry })) as MatchedOptions<T>[]
       const matchedOptions = autoMapSelectValues
         ? uniqueData.map((record) => {
             const value = fieldOptions.find(

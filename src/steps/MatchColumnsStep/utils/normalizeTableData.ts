@@ -44,7 +44,17 @@ export const normalizeTableData = <T extends string>(
             acc[column.value] = []
             return acc
           }
-          const values = curr.split(multiSelectValueSeparator).map((v) => v.trim())
+          let values = curr.split(multiSelectValueSeparator).map((v) => v.trim())
+          
+          // Special handling for "categories" field: extract only the leaf (last segment) from each category path
+          // e.g., "Default Category > Shop > Pferdedecken" becomes "Pferdedecken"
+          if (column.value === "categories") {
+            values = values.map((v) => {
+              const segments = v.split(" > ")
+              return segments[segments.length - 1].trim()
+            })
+          }
+          
           const mappedValues: string[] = values
             .map((v) => {
               const matchedOption = column.matchedOptions.find(({ entry }) => entry === v)
