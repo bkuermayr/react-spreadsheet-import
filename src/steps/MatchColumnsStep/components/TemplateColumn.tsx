@@ -20,11 +20,15 @@ import { MatchColumnSelect } from "../../../components/Selects/MatchColumnSelect
 import { SubMatchingSelect } from "./SubMatchingSelect"
 import type { Styles } from "./ColumnGrid"
 
+// Count unmapped: use strict undefined/null so value 0 or "" (valid mapped values) are not counted as unmapped
+const isUnmappedOption = (option: { value?: unknown }) =>
+  option.value === undefined || option.value === null
+
 const getAccordionTitle = <T extends string>(fields: Fields<T>, column: Column<T>, translations: Translations) => {
   const fieldLabel = fields.find((field) => "value" in column && field.key === column.value)!.label
-  return `${translations.matchColumnsStep.matchDropdownTitle} ${fieldLabel} (${
-    "matchedOptions" in column && column.matchedOptions.filter((option) => !option.value).length
-  } ${translations.matchColumnsStep.unmatched})`
+  const unmappedCount =
+    "matchedOptions" in column ? column.matchedOptions.filter(isUnmappedOption).length : 0
+  return `${translations.matchColumnsStep.matchDropdownTitle} ${fieldLabel} (${unmappedCount} ${translations.matchColumnsStep.unmatched})`
 }
 
 type TemplateColumnProps<T extends string> = {
@@ -54,8 +58,8 @@ export const TemplateColumn = <T extends string>({
   const selectOptions = fields.map(({ label, key }) => ({ value: key, label }))
   const selectValue = selectOptions.find(({ value }) => "value" in column && column.value === value)
 
-  // Check if there are any unmatched options
-  const hasUnmatchedOptions = isSelect && column.matchedOptions.some((option) => !option.value)
+  // Check if there are any unmatched options (strict: only undefined/null, so value 0 is treated as matched)
+  const hasUnmatchedOptions = isSelect && column.matchedOptions.some(isUnmappedOption)
 
   const handleAiAutoMap = async () => {
     if (onAiAutoMap) {
