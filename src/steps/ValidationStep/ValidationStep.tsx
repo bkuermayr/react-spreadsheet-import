@@ -65,8 +65,6 @@ export const ValidationStep = <T extends string>({ initialData, file, onBack }: 
     [data, updateData],
   )
 
-  const columns = useMemo(() => generateColumns(fields), [fields])
-
   const tableData = useMemo(() => {
     if (filterByErrors) {
       return data.filter((value) => {
@@ -78,6 +76,18 @@ export const ValidationStep = <T extends string>({ initialData, file, onBack }: 
     }
     return data
   }, [data, filterByErrors])
+
+  const visibleRowIds = useMemo(() => tableData.map((row) => row.__index), [tableData])
+
+  const columns = useMemo(
+    () =>
+      generateColumns(fields, {
+        selectedRows,
+        onSelectedRowsChange: setSelectedRows,
+        visibleRowIds,
+      }),
+    [fields, selectedRows, visibleRowIds],
+  )
 
   const rowKeyGetter = useCallback((row: Data<T> & Meta) => row.__index, [])
 

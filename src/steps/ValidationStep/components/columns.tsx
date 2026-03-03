@@ -9,12 +9,21 @@ import { TableMultiSelect } from "../../../components/Selects/TableMultiSelect"
 
 const SELECT_COLUMN_KEY = "select-row"
 
+type SelectionColumnProps = {
+  selectedRows: ReadonlySet<string | number>
+  onSelectedRowsChange: (selectedRows: ReadonlySet<string | number>) => void
+  visibleRowIds: Array<string | number>
+}
+
 function autoFocusAndSelect(input: HTMLInputElement | null) {
   input?.focus()
   input?.select()
 }
 
-export const generateColumns = <T extends string>(fields: Fields<T>): Column<Data<T> & Meta>[] => [
+export const generateColumns = <T extends string>(
+  fields: Fields<T>,
+  selectionColumnProps?: SelectionColumnProps,
+): Column<Data<T> & Meta>[] => [
   {
     key: SELECT_COLUMN_KEY,
     name: "",
@@ -25,6 +34,35 @@ export const generateColumns = <T extends string>(fields: Fields<T>): Column<Dat
     sortable: false,
     frozen: true,
     cellClass: "rdg-checkbox",
+    headerRenderer: () => {
+      if (!selectionColumnProps) return null
+
+      const { selectedRows, onSelectedRowsChange, visibleRowIds } = selectionColumnProps
+      const allVisibleSelected =
+        visibleRowIds.length > 0 && visibleRowIds.every((rowId) => selectedRows.has(rowId))
+      const someVisibleSelected = visibleRowIds.some((rowId) => selectedRows.has(rowId))
+
+      return (
+        <Checkbox
+          bg="white"
+          aria-label="Select all"
+          isDisabled={!visibleRowIds.length}
+          isChecked={allVisibleSelected}
+          isIndeterminate={someVisibleSelected && !allVisibleSelected}
+          onChange={(event) => {
+            const nextSelectedRows = new Set(selectedRows)
+
+            if (event.target.checked) {
+              visibleRowIds.forEach((rowId) => nextSelectedRows.add(rowId))
+            } else {
+              visibleRowIds.forEach((rowId) => nextSelectedRows.delete(rowId))
+            }
+
+            onSelectedRowsChange(nextSelectedRows)
+          }}
+        />
+      )
+    },
     formatter: (props) => {
       // eslint-disable-next-line  react-hooks/rules-of-hooks
       const [isRowSelected, onRowSelectionChange] = useRowSelection()

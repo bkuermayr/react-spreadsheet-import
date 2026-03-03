@@ -431,6 +431,70 @@ describe("Validation step tests", () => {
     expect(validRow).toBeInTheDocument()
   })
 
+  test("Selects all filtered invalid rows from header checkbox", async () => {
+    const VALID = "valid"
+    const INVALID_ONE = undefined
+    const INVALID_TWO = undefined
+
+    const fields = [
+      {
+        label: "Name",
+        key: "name",
+        fieldType: {
+          type: "input",
+        },
+        validations: [
+          {
+            rule: "required",
+            errorMessage: "Name is required",
+          },
+        ],
+      },
+    ] as const
+    const initialData = await addErrorsAndRunHooks(
+      [
+        {
+          name: VALID,
+        },
+        {
+          name: INVALID_ONE,
+        },
+        {
+          name: INVALID_TWO,
+        },
+      ],
+      fields,
+    )
+
+    render(
+      <Providers theme={defaultTheme} rsiValues={{ ...mockValues, fields }}>
+        <ModalWrapper isOpen={true} onClose={() => {}}>
+          <ValidationStep<fieldKeys<typeof fields>> initialData={initialData} file={file} />
+        </ModalWrapper>
+      </Providers>,
+    )
+
+    const switchFilter = getFilterSwitch()
+    await userEvent.click(switchFilter)
+
+    await expect(await screen.findAllByRole("row")).toHaveLength(3)
+
+    const selectAllInvalidRows = screen.getByRole("checkbox", { name: "Select all" })
+    await userEvent.click(selectAllInvalidRows)
+
+    const discardButton = screen.getByRole("button", {
+      name: "Discard selected rows",
+    })
+    await userEvent.click(discardButton)
+
+    await expect(await screen.findAllByRole("row")).toHaveLength(1)
+
+    await userEvent.click(switchFilter)
+
+    await expect(await screen.findAllByRole("row")).toHaveLength(2)
+    expect(screen.getByText(VALID)).toBeInTheDocument()
+  })
+
   test("Deletes selected rows, changes the last one", async () => {
     const FIRST_DELETE = "first"
     const SECOND_DELETE = "second"
