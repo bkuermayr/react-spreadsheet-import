@@ -20,7 +20,12 @@ type AiAutoMapResult<T> = {
   error?: string
 }
 
-type MappingResponse = Array<string | null>
+type MappingResponse = {
+  mappings: Array<{
+    entry: string
+    value: string | null
+  }>
+}
 
 const mapBatch = async <T extends string>({
   entries,
@@ -52,10 +57,10 @@ Rules:
 - If an entry is a sub-category or variant of an option, map it to the closest parent or related option.
 - Only return null when there is truly no reasonable match at all.
 
-Return ONLY a valid JSON array with no other text, in this exact format:
-["matched value or null","matched value or null",...]
+Return ONLY a valid JSON object with no other text, in this exact format:
+{"mappings":[{"entry":"original entry text","value":"matched value or null"},...]}
 
-Return exactly ${entries.length} values in the same order as the entries.`
+Return exactly ${entries.length} mappings, one for each entry in the same order.`
 
   const prompt = customValueMappingPrompt
     ? customValueMappingPrompt(optionsList, entriesList, entries.length)
@@ -81,19 +86,32 @@ Return exactly ${entries.length} values in the same order as the entries.`
     }
   }
 
-  if (!Array.isArray(parsed)) {
+  if (!parsed || !Array.isArray(parsed.mappings)) {
     return {
       mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
       error: "Invalid AI response structure",
     }
   }
 
-  // Index-based matching: pair each AI value with its original entry by position.
-  // This avoids relying on the AI echoing entry text back exactly.
-  const mappings = entries.map((entry, i) => ({
-    entry,
-    value: (parsed[i] || undefined) as T,
-  }))
+  // Primary: index-based matching so we always use the original entry text.
+  // Fallback: if the AI returned fewer items than expected, try matching
+  // remaining entries by entry text from the AI response.
+  const usedIndices = new Set<number>()
+  const mappings = entries.map((entry, i) => {
+    if (i < parsed.mappings.length) {
+      usedIndices.add(i)
+      return { entry, value: (parsed.mappings[i].value || undefined) as T }
+    }
+    // Fallback: find by entry text for any entries beyond the response length
+    const fallback = parsed.mappings.find(
+      (m, j) => !usedIndices.has(j) && m.entry === entry,
+    )
+    if (fallback) {
+      usedIndices.add(parsed.mappings.indexOf(fallback))
+      return { entry, value: (fallback.value || undefined) as T }
+    }
+    return { entry, value: undefined as unknown as T }
+  })
 
   return { mappings }
 }
