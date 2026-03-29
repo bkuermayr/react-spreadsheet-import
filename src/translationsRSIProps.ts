@@ -37,6 +37,7 @@ export const translations = {
     unmatched: "Unmatched",
     duplicateColumnWarningTitle: "Another column unselected",
     duplicateColumnWarningDescription: "Columns cannot duplicate",
+    showOnlyUnmapped: "Show only unmatched",
     autoMapWithAiButtonTitle: "Automap with AI",
     aiMappingInProgress: "AI mapping in progress...",
     aiMappingError: "AI mapping failed",

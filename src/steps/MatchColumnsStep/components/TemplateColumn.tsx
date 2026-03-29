@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Flex,
   Text,
@@ -9,6 +10,9 @@ import {
   AccordionPanel,
   useStyleConfig,
   Button,
+  Switch,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react"
 import { useRsi } from "../../../hooks/useRsi"
 import type { Column } from "../MatchColumnsStep"
@@ -48,6 +52,7 @@ export const TemplateColumn = <T extends string>({
 }: TemplateColumnProps<T>) => {
   const { translations, fields } = useRsi<T>()
   const styles = useStyleConfig("MatchColumnsStep") as Styles
+  const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(false)
   const isIgnored = column.type === ColumnType.ignored
   const isChecked =
     column.type === ColumnType.matched ||
@@ -104,8 +109,8 @@ export const TemplateColumn = <T extends string>({
                     </Box>
                   </AccordionButton>
                   <AccordionPanel pb={4} pr={3} display="flex" flexDir="column">
-                    {hasUnmatchedOptions && onAiAutoMap && (
-                      <Box mb={3}>
+                    <Flex mb={3} gap={3} alignItems="center" flexWrap="wrap">
+                      {hasUnmatchedOptions && onAiAutoMap && (
                         <Button
                           size="sm"
                           colorScheme="purple"
@@ -116,9 +121,25 @@ export const TemplateColumn = <T extends string>({
                         >
                           {translations.matchColumnsStep.autoMapWithAiButtonTitle}
                         </Button>
-                      </Box>
-                    )}
-                    {column.matchedOptions.map((option) => (
+                      )}
+                      {hasUnmatchedOptions && (
+                        <FormControl display="flex" alignItems="center" w="auto">
+                          <Switch
+                            id={`show-unmapped-${column.index}`}
+                            size="sm"
+                            isChecked={showOnlyUnmapped}
+                            onChange={(e) => setShowOnlyUnmapped(e.target.checked)}
+                          />
+                          <FormLabel htmlFor={`show-unmapped-${column.index}`} mb={0} ml={2} fontSize="xs" cursor="pointer">
+                            {translations.matchColumnsStep.showOnlyUnmapped}
+                          </FormLabel>
+                        </FormControl>
+                      )}
+                    </Flex>
+                    {(showOnlyUnmapped
+                      ? column.matchedOptions.filter(isUnmappedOption)
+                      : column.matchedOptions
+                    ).map((option) => (
                       <SubMatchingSelect option={option} column={column} onSubChange={onSubChange} key={option.entry} />
                     ))}
                   </AccordionPanel>

@@ -4,7 +4,7 @@ import pLimit from "p-limit"
 import type { MatchedOptions } from "../MatchColumnsStep"
 import type { SelectOption } from "../../../types"
 
-const BATCH_SIZE = 150
+const BATCH_SIZE = 50
 const CONCURRENCY = 3
 
 type AiAutoMapParams = {
@@ -20,7 +20,12 @@ type AiAutoMapResult<T> = {
   error?: string
 }
 
-type MappingResponse = Array<string | null>
+type MappingResponse = {
+  mappings: Array<{
+    entry: string
+    value: string | null
+  }>
+}
 
 const mapBatch = async <T extends string>({
   entries,
@@ -51,11 +56,12 @@ Rules:
 - Consider semantic similarity, abbreviations, synonyms, partial matches, sub-categories, and parent-child relationships.
 - If an entry is a sub-category or variant of an option, map it to the closest parent or related option.
 - Only return null when there is truly no reasonable match at all.
+- You MUST only use values from the "Available options" list above. Do NOT invent new values.
 
-Return ONLY a valid JSON array with no other text, in this exact format:
-["matched value or null","matched value or null",...]
+Return ONLY a valid JSON object with no other text, in this exact format:
+{"mappings":[{"entry":"original entry text","value":"matched value or null"},...]}
 
-Return exactly ${entries.length} values in the same order as the entries.`
+Return exactly ${entries.length} mappings, one for each entry in the same order.`
 
   const prompt = customValueMappingPrompt
     ? customValueMappingPrompt(optionsList, entriesList, entries.length)
@@ -81,19 +87,47 @@ Return exactly ${entries.length} values in the same order as the entries.`
     }
   }
 
-  if (!Array.isArray(parsed)) {
+  if (!parsed || !Array.isArray(parsed.mappings)) {
     return {
       mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
       error: "Invalid AI response structure",
     }
   }
 
-  // Index-based matching: pair each AI value with its original entry by position.
-  // This avoids relying on the AI echoing entry text back exactly.
-  const mappings = entries.map((entry, i) => ({
-    entry,
-    value: (parsed[i] || undefined) as T,
-  }))
+  // Build lookup structures for validation and fuzzy correction
+  const validValues = new Set(fieldOptions.map((opt) => opt.value))
+  const lowerToValue = new Map(fieldOptions.map((opt) => [opt.value.toLowerCase(), opt.value]))
+  const optionsByLength = [...fieldOptions].sort((a, b) => b.value.length - a.value.length)
+
+  // Index-based matching with multi-level validation to prevent
+  // hallucinated category names while recovering near-misses.
+  const mappings = entries.map((entry, i) => {
+    const rawValue = i < parsed.mappings.length ? parsed.mappings[i]?.value : null
+    if (!rawValue) return { entry, value: undefined as unknown as T }
+
+    if (validValues.has(rawValue)) {
+      return { entry, value: rawValue as T }
+    }
+
+    const lowerVal = rawValue.toLowerCase()
+
+    const ciMatch = lowerToValue.get(lowerVal)
+    if (ciMatch) {
+      return { entry, value: ciMatch as T }
+    }
+
+    // Substring fallback: if the AI composed a value like
+    // "RidersChoice Reithosen - Jeansreithosen", find the longest
+    // option value that's contained within the AI's response.
+    const substringMatch = optionsByLength.find(
+      (opt) => opt.value.length >= 3 && lowerVal.includes(opt.value.toLowerCase()),
+    )
+    if (substringMatch) {
+      return { entry, value: substringMatch.value as T }
+    }
+
+    return { entry, value: undefined as unknown as T }
+  })
 
   return { mappings }
 }
@@ -102,7 +136,7 @@ export const aiAutoMapSelectValues = async <T extends string>({
   entries,
   fieldOptions,
   aiApiKey,
-  aiModel = "gpt-5",
+  aiModel = "gpt-5-mini",
   customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
   if (!aiApiKey) {
@@ -118,9 +152,9 @@ export const aiAutoMapSelectValues = async <T extends string>({
       apiKey: aiApiKey,
     })
 
-    // Split entries into batches to avoid hitting model output token limits.
-    // A single large response with 400+ mappings frequently gets truncated,
-    // causing either a JSON parse failure or silently missing entries.
+    // Split entries into batches to avoid hitting model output token limits
+    // and API timeouts. With 500+ options, even 150 entries per batch
+    // produces prompts large enough to cause multi-minute responses.
     const batches: string[][] = []
     for (let i = 0; i < entries.length; i += BATCH_SIZE) {
       batches.push(entries.slice(i, i + BATCH_SIZE))
