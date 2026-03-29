@@ -102,7 +102,7 @@ export const aiAutoMapSelectValues = async <T extends string>({
   entries,
   fieldOptions,
   aiApiKey,
-  aiModel = "gpt-5-mini",
+  aiModel = "gpt-5",
   customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
   if (!aiApiKey) {
