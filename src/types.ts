@@ -53,7 +53,7 @@ export type RsiProps<T extends string> = {
   rtl?: boolean
   // AI API key for automap with AI feature. Default: uses AI_GATEWAY_API_KEY env variable
   aiApiKey?: string
-  // AI model to use for automap. Default: "openai/gpt-5-nano"
+  // AI model to use for automap. Default: "gpt-5-mini"
   aiModel?: string
   // Custom prompt for AI value mapping. Receives optionsList, entriesList, and entriesCount as parameters.
   // Must return a prompt that produces JSON in format: {"mappings":[{"entry":"text","value":"matched or null"},...]}
