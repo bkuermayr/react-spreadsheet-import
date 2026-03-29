@@ -277,15 +277,23 @@ export const MatchColumnsStep = <T extends string>({
           })
         }
 
-        // Update the column with AI-mapped values
+        // Build a lookup map from the AI results keyed by entry text
+        const aiMappingByEntry = new Map<string, T>()
+        for (const m of result.mappings) {
+          if (m.value) {
+            aiMappingByEntry.set(m.entry, m.value)
+          }
+        }
+
         setColumns(
           columns.map((col, index) => {
             if (index !== columnIndex || !("matchedOptions" in col)) return col
 
             const updatedOptions = col.matchedOptions.map((opt) => {
-              const aiMapping = result.mappings.find((m) => m.entry === opt.entry)
-              if (aiMapping && aiMapping.value) {
-                return { ...opt, value: aiMapping.value }
+              if (opt.value) return opt
+              const mapped = opt.entry != null ? aiMappingByEntry.get(opt.entry) : undefined
+              if (mapped) {
+                return { ...opt, value: mapped }
               }
               return opt
             })

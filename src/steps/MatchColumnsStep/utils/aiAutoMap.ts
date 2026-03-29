@@ -20,12 +20,7 @@ type AiAutoMapResult<T> = {
   error?: string
 }
 
-type MappingResponse = {
-  mappings: Array<{
-    entry: string
-    value: string | null
-  }>
-}
+type MappingResponse = Array<string | null>
 
 const mapBatch = async <T extends string>({
   entries,
@@ -43,7 +38,7 @@ const mapBatch = async <T extends string>({
   const optionsList = fieldOptions.map((opt) => `- "${opt.label}" (value: "${opt.value}")`).join("\n")
   const entriesList = entries.map((e, i) => `${i + 1}. "${e}"`).join("\n")
 
-  const defaultPrompt = `You are a data mapping assistant. Map the following entries to the most appropriate option from the available options list.
+  const defaultPrompt = `You are a data mapping assistant. Map each entry below to the best matching option.
 
 Available options:
 ${optionsList}
@@ -51,13 +46,16 @@ ${optionsList}
 Entries to map:
 ${entriesList}
 
-For each entry, return the "value" (not label) of the best matching option, considering semantic similarity, abbreviations, synonyms, and partial matches.
-IMPORTANT: If no option is a clear semantic match, you MUST return null for that entry's value. Do NOT force a mapping when there is no fitting value.
+Rules:
+- Return the "value" (not label) of the best matching option.
+- Consider semantic similarity, abbreviations, synonyms, partial matches, sub-categories, and parent-child relationships.
+- If an entry is a sub-category or variant of an option, map it to the closest parent or related option.
+- Only return null when there is truly no reasonable match at all.
 
-IMPORTANT: Return ONLY a valid JSON object with no other text, in this exact format:
-{"mappings":[{"entry":"original entry text","value":"matched value or null"},...]}
+Return ONLY a valid JSON array with no other text, in this exact format:
+["matched value or null","matched value or null",...]
 
-Return exactly ${entries.length} mappings, one for each entry in the same order.`
+Return exactly ${entries.length} values in the same order as the entries.`
 
   const prompt = customValueMappingPrompt
     ? customValueMappingPrompt(optionsList, entriesList, entries.length)
@@ -83,16 +81,18 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
     }
   }
 
-  if (!parsed || !Array.isArray(parsed.mappings)) {
+  if (!Array.isArray(parsed)) {
     return {
       mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
       error: "Invalid AI response structure",
     }
   }
 
-  const mappings = parsed.mappings.map((m) => ({
-    entry: m.entry,
-    value: (m.value || undefined) as T,
+  // Index-based matching: pair each AI value with its original entry by position.
+  // This avoids relying on the AI echoing entry text back exactly.
+  const mappings = entries.map((entry, i) => ({
+    entry,
+    value: (parsed[i] || undefined) as T,
   }))
 
   return { mappings }
