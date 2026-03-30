@@ -67,10 +67,20 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
     ? customValueMappingPrompt(optionsList, entriesList, entries.length)
     : defaultPrompt
 
-  const { text } = await generateText({
-    model: openai(aiModel),
-    prompt,
-  })
+  let text: string
+  try {
+    const response = await generateText({
+      model: openai(aiModel),
+      prompt,
+    })
+    text = response.text
+  } catch (apiError) {
+    console.error("[aiAutoMap] API call failed:", apiError)
+    return {
+      mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
+      error: `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`,
+    }
+  }
 
   let parsed: MappingResponse
   try {
@@ -162,17 +172,24 @@ export const aiAutoMapSelectValues = async <T extends string>({
 
     const limit = pLimit(CONCURRENCY)
 
+    console.log(`[aiAutoMap] ${entries.length} entries, ${fieldOptions.length} options, ${batches.length} batches (size=${BATCH_SIZE}, concurrency=${CONCURRENCY})`)
+
     const batchResults = await Promise.all(
-      batches.map((batch) =>
-        limit(() =>
-          mapBatch<T>({
+      batches.map((batch, idx) =>
+        limit(() => {
+          console.log(`[aiAutoMap] Batch ${idx + 1}/${batches.length}: sending ${batch.length} entries...`)
+          return mapBatch<T>({
             entries: batch,
             fieldOptions,
             openai,
             aiModel,
             customValueMappingPrompt,
-          }),
-        ),
+          }).then((res) => {
+            const mapped = res.mappings.filter((m) => m.value).length
+            console.log(`[aiAutoMap] Batch ${idx + 1}/${batches.length}: done — ${mapped}/${batch.length} mapped${res.error ? `, error: ${res.error}` : ""}`)
+            return res
+          })
+        }),
       ),
     )
 
@@ -184,6 +201,9 @@ export const aiAutoMapSelectValues = async <T extends string>({
         errors.push(result.error)
       }
     }
+
+    const totalMapped = allMappings.filter((m) => m.value).length
+    console.log(`[aiAutoMap] All batches done: ${totalMapped}/${allMappings.length} mapped total`)
 
     return {
       mappings: allMappings,

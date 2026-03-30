@@ -284,19 +284,23 @@ export const MatchColumnsStep = <T extends string>({
             aiMappingByEntry.set(m.entry, m.value)
           }
         }
+        console.log(`[onAiAutoMap] AI returned ${result.mappings.length} mappings, ${aiMappingByEntry.size} with values`)
 
-        setColumns(
-          columns.map((col, index) => {
+        setColumns((prevColumns) =>
+          prevColumns.map((col, index) => {
             if (index !== columnIndex || !("matchedOptions" in col)) return col
 
+            let appliedCount = 0
             const updatedOptions = col.matchedOptions.map((opt) => {
               if (opt.value) return opt
               const mapped = opt.entry != null ? aiMappingByEntry.get(opt.entry) : undefined
               if (mapped) {
+                appliedCount++
                 return { ...opt, value: mapped }
               }
               return opt
             })
+            console.log(`[onAiAutoMap] Applied ${appliedCount} mappings to column ${columnIndex}, ${updatedOptions.filter((o) => !o.value).length} still unmatched`)
 
             const allMatched = updatedOptions.every((o) => o.value)
             const newType =
