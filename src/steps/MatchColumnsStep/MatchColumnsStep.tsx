@@ -250,11 +250,14 @@ export const MatchColumnsStep = <T extends string>({
       const fieldOptions = getFieldOptions(fields, column.value)
       if (fieldOptions.length === 0) return
 
+      console.log(`[onAiAutoMap] fieldOptions count: ${fieldOptions.length}, sample:`, fieldOptions.slice(0, 3))
+
       // Get unmatched entries
       const unmatchedEntries = column.matchedOptions.filter((opt) => !opt.value).map((opt) => opt.entry!)
 
       if (unmatchedEntries.length === 0) return
 
+      console.log(`[onAiAutoMap] ${unmatchedEntries.length} unmatched entries, ${column.matchedOptions.length} total options`)
       setAiMappingColumnIndex(columnIndex)
 
       try {

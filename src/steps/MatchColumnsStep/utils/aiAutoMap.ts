@@ -113,7 +113,7 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
   // hallucinated category names while recovering near-misses.
   const mappings = entries.map((entry, i) => {
     const rawValue = i < parsed.mappings.length ? parsed.mappings[i]?.value : null
-    if (!rawValue) return { entry, value: undefined as unknown as T }
+    if (!rawValue || rawValue === "null") return { entry, value: undefined as unknown as T }
 
     if (validValues.has(rawValue)) {
       return { entry, value: rawValue as T }
@@ -140,6 +140,83 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
   })
 
   return { mappings }
+}
+
+const STRIP_PREFIXES = ["kinder ", "damen ", "herren "]
+const STRIP_SUFFIXES = [" kinder", " für kinder", " damen", " für damen", " herren", " für herren"]
+
+/**
+ * Local fallback: for entries the AI couldn't match, try matching the
+ * rightmost path segments against option labels (most-specific first).
+ *
+ * Matching levels per segment:
+ *   1. Exact label match
+ *   2. Case-insensitive label match
+ *   3. Stripped segment match (remove gender/age prefixes like "Kinder ", "Damen ")
+ *   4. Contains match (label ⊂ segment or segment ⊂ label, min 5 chars)
+ */
+const localSegmentMatch = <T extends string>(
+  entry: string,
+  labelToValue: Map<string, T>,
+  lowerLabelToValue: Map<string, T>,
+  lowerLabels: string[],
+  lowerLabelToOriginal: Map<string, string>,
+): T | undefined => {
+  const segments = entry
+    .split("/")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .reverse()
+
+  // Level 1 & 2: exact / case-insensitive
+  for (const seg of segments) {
+    const exact = labelToValue.get(seg)
+    if (exact) return exact
+    const ci = lowerLabelToValue.get(seg.toLowerCase())
+    if (ci) return ci
+  }
+
+  // Level 3: strip gender/age qualifiers from segment and retry
+  for (const seg of segments) {
+    let stripped = seg.toLowerCase()
+    for (const p of STRIP_PREFIXES) {
+      if (stripped.startsWith(p)) stripped = stripped.slice(p.length)
+    }
+    for (const s of STRIP_SUFFIXES) {
+      if (stripped.endsWith(s)) stripped = stripped.slice(0, -s.length)
+    }
+    if (stripped !== seg.toLowerCase()) {
+      const ci = lowerLabelToValue.get(stripped)
+      if (ci) return ci
+    }
+  }
+
+  // Level 4: contains match (longest label that's contained in or contains segment)
+  for (const seg of segments) {
+    const lower = seg.toLowerCase()
+    if (lower.length < 5) continue
+    let bestMatch: string | undefined
+    let bestLen = 0
+    for (const ll of lowerLabels) {
+      if (ll.length < 5) continue
+      if (lower.includes(ll) && ll.length > bestLen) {
+        bestMatch = ll
+        bestLen = ll.length
+      } else if (ll.includes(lower) && lower.length > bestLen) {
+        bestMatch = ll
+        bestLen = lower.length
+      }
+    }
+    if (bestMatch) {
+      const orig = lowerLabelToOriginal.get(bestMatch)
+      if (orig) {
+        const v = labelToValue.get(orig)
+        if (v) return v
+      }
+    }
+  }
+
+  return undefined
 }
 
 export const aiAutoMapSelectValues = async <T extends string>({
@@ -202,11 +279,31 @@ export const aiAutoMapSelectValues = async <T extends string>({
       }
     }
 
-    const totalMapped = allMappings.filter((m) => m.value).length
-    console.log(`[aiAutoMap] All batches done: ${totalMapped}/${allMappings.length} mapped total`)
+    const aiMapped = allMappings.filter((m) => m.value).length
+    console.log(`[aiAutoMap] All batches done: ${aiMapped}/${allMappings.length} mapped by AI`)
+
+    // Local fallback: for entries the AI returned null, try segment-matching
+    const labelToValue = new Map(fieldOptions.map((opt) => [opt.label, opt.value as T]))
+    const lowerLabelToValue = new Map(fieldOptions.map((opt) => [opt.label.toLowerCase(), opt.value as T]))
+    const lowerLabels = fieldOptions.map((opt) => opt.label.toLowerCase())
+    const lowerLabelToOriginal = new Map(fieldOptions.map((opt) => [opt.label.toLowerCase(), opt.label]))
+
+    let fallbackCount = 0
+    const finalMappings = allMappings.map((m) => {
+      if (m.value) return m
+      const fallback = localSegmentMatch<T>(m.entry, labelToValue, lowerLabelToValue, lowerLabels, lowerLabelToOriginal)
+      if (fallback) {
+        fallbackCount++
+        return { ...m, value: fallback }
+      }
+      return m
+    })
+
+    const totalMapped = finalMappings.filter((m) => m.value).length
+    console.log(`[aiAutoMap] Local fallback matched ${fallbackCount} additional entries. Total: ${totalMapped}/${finalMappings.length}`)
 
     return {
-      mappings: allMappings,
+      mappings: finalMappings,
       error: errors.length > 0 ? errors.join("; ") : undefined,
     }
   } catch (error) {
