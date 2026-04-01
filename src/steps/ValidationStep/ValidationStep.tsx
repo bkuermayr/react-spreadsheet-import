@@ -79,14 +79,27 @@ export const ValidationStep = <T extends string>({ initialData, file, onBack }: 
 
   const visibleRowIds = useMemo(() => tableData.map((row) => row.__index), [tableData])
 
+  const nonEmptyFields = useMemo(
+    () =>
+      fields.filter((field) =>
+        initialData.some((row) => {
+          const value = row[field.key]
+          if (value === undefined || value === null || value === "") return false
+          if (Array.isArray(value) && value.length === 0) return false
+          return true
+        }),
+      ),
+    [fields, initialData],
+  )
+
   const columns = useMemo(
     () =>
-      generateColumns(fields, {
+      generateColumns(nonEmptyFields, {
         selectedRows,
         onSelectedRowsChange: setSelectedRows,
         visibleRowIds,
       }),
-    [fields, selectedRows, visibleRowIds],
+    [nonEmptyFields, selectedRows, visibleRowIds],
   )
 
   const rowKeyGetter = useCallback((row: Data<T> & Meta) => row.__index, [])
