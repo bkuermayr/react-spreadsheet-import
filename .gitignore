@@ -11,3 +11,16 @@ coverage
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Local env / secrets — never commit.
+.env
+.env.*
+!.env.example
+
+# Ad-hoc experiments kept out of the fork so downstream consumers don't pull
+# them in.
+test-ai-mapping.ts
+test-fallback.ts
+test-production-flow.ts
+extract-entries.ts
+full-entries.json
