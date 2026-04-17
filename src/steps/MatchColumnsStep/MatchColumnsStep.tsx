@@ -99,12 +99,15 @@ export const MatchColumnsStep = <T extends string>({
     translations,
     multiSelectValueSeparator,
     aiApiKey,
+    aiProxyUrl,
     aiModel,
     customValueMappingPrompt,
     fetchColumnUniqueValues,
     autoTriggerAiValueMapping,
     passUnmappedValues,
   } = useRsi<T>()
+  // AI mapping is available whenever either a direct key or a proxy URL exists.
+  const aiEnabled = Boolean(aiApiKey || aiProxyUrl)
   const [isLoading, setIsLoading] = useState(false)
   const [aiMappingColumnIndex, setAiMappingColumnIndex] = useState<number | null>(null)
   const [fetchingColumnIndex, setFetchingColumnIndex] = useState<number | null>(null)
@@ -192,7 +195,7 @@ export const MatchColumnsStep = <T extends string>({
       
       // Auto-trigger AI value mapping for select/multi_select fields if enabled
       // Add to queue for processing (will be handled by useEffect)
-      if (autoTriggerAiValueMapping && aiApiKey && isSelectField && !autoMappedColumns.has(columnIndex)) {
+      if (autoTriggerAiValueMapping && aiEnabled && isSelectField && !autoMappedColumns.has(columnIndex)) {
         // Mark this column as auto-mapped to prevent repeated triggers
         setAutoMappedColumns((prev) => new Set([...prev, columnIndex]))
         // Add to pending queue for AI mapping
@@ -210,7 +213,7 @@ export const MatchColumnsStep = <T extends string>({
       translations.matchColumnsStep.duplicateColumnWarningTitle,
       fetchColumnUniqueValues,
       autoTriggerAiValueMapping,
-      aiApiKey,
+      aiEnabled,
       autoMappedColumns,
     ],
   )
@@ -265,6 +268,7 @@ export const MatchColumnsStep = <T extends string>({
           entries: unmatchedEntries,
           fieldOptions,
           aiApiKey,
+          aiProxyUrl,
           aiModel,
           customValueMappingPrompt,
         })
@@ -335,7 +339,7 @@ export const MatchColumnsStep = <T extends string>({
         setAiMappingColumnIndex(null)
       }
     },
-    [columns, fields, aiApiKey, aiModel, customValueMappingPrompt, toast, translations.matchColumnsStep.aiMappingError],
+    [columns, fields, aiApiKey, aiProxyUrl, aiModel, customValueMappingPrompt, toast, translations.matchColumnsStep.aiMappingError],
   )
 
   const handleOnContinue = useCallback(async () => {
@@ -363,7 +367,7 @@ export const MatchColumnsStep = <T extends string>({
         
         // If auto-trigger AI value mapping is enabled, queue all select/multi_select columns
         // that have unmatched options for AI mapping
-        if (autoTriggerAiValueMapping && aiApiKey) {
+        if (autoTriggerAiValueMapping && aiEnabled) {
           const columnsToAutoMap: number[] = []
           matchedColumns.forEach((column, index) => {
             if ("matchedOptions" in column && column.matchedOptions.some((opt) => !opt.value)) {

@@ -11,8 +11,51 @@ type AiAutoMapParams = {
   entries: string[]
   fieldOptions: readonly SelectOption[]
   aiApiKey?: string
+  /**
+   * Optional server-side proxy URL. When provided, all LLM calls are routed
+   * through this endpoint instead of calling OpenAI directly from the
+   * browser. Prevents leaking the OpenAI API key to the client.
+   */
+  aiProxyUrl?: string
   aiModel?: string
   customValueMappingPrompt?: (optionsList: string, entriesList: string, entriesCount: number) => string
+}
+
+/** Minimal shape returned by a caller-supplied proxy endpoint. */
+type GenerateTextFn = (args: { prompt: string; model: string }) => Promise<string>
+
+const buildProxyGenerateText = (proxyUrl: string): GenerateTextFn => async ({ prompt, model }) => {
+  const response = await fetch(proxyUrl, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, model }),
+  })
+
+  if (!response.ok) {
+    // Surface server-side error messages when they're JSON-encoded.
+    let detail = `HTTP ${response.status}`
+    try {
+      const body = await response.json()
+      if (body?.error) detail = String(body.error)
+    } catch {
+      // non-JSON body — keep the status code
+    }
+    throw new Error(`AI proxy error: ${detail}`)
+  }
+
+  const body = (await response.json()) as { text?: string; error?: string }
+  if (body.error) throw new Error(body.error)
+  if (typeof body.text !== "string") throw new Error("AI proxy returned no text")
+  return body.text
+}
+
+const buildOpenAiGenerateText = (apiKey: string): GenerateTextFn => {
+  const openai = createOpenAI({ apiKey })
+  return async ({ prompt, model }) => {
+    const response = await generateText({ model: openai(model), prompt })
+    return response.text
+  }
 }
 
 type AiAutoMapResult<T> = {
@@ -30,13 +73,13 @@ type MappingResponse = {
 const mapBatch = async <T extends string>({
   entries,
   fieldOptions,
-  openai,
+  generateText: generate,
   aiModel,
   customValueMappingPrompt,
 }: {
   entries: string[]
   fieldOptions: readonly SelectOption[]
-  openai: ReturnType<typeof createOpenAI>
+  generateText: GenerateTextFn
   aiModel: string
   customValueMappingPrompt?: AiAutoMapParams["customValueMappingPrompt"]
 }): Promise<AiAutoMapResult<T>> => {
@@ -69,11 +112,7 @@ Return exactly ${entries.length} mappings, one for each entry in the same order.
 
   let text: string
   try {
-    const response = await generateText({
-      model: openai(aiModel),
-      prompt,
-    })
-    text = response.text
+    text = await generate({ model: aiModel, prompt })
   } catch (apiError) {
     console.error("[aiAutoMap] API call failed:", apiError)
     return {
@@ -223,21 +262,24 @@ export const aiAutoMapSelectValues = async <T extends string>({
   entries,
   fieldOptions,
   aiApiKey,
+  aiProxyUrl,
   aiModel = "gpt-5-mini",
   customValueMappingPrompt,
 }: AiAutoMapParams): Promise<AiAutoMapResult<T>> => {
-  if (!aiApiKey) {
-    console.error("AI API key is missing")
+  if (!aiProxyUrl && !aiApiKey) {
+    console.error("AI auto-map: no proxy URL or API key configured")
     return {
       mappings: entries.map((entry) => ({ entry, value: undefined as unknown as T })),
-      error: "AI API key is missing. Please provide aiApiKey prop.",
+      error: "AI auto-map requires either aiProxyUrl or aiApiKey to be set.",
     }
   }
 
   try {
-    const openai = createOpenAI({
-      apiKey: aiApiKey,
-    })
+    // Prefer the proxy when both are supplied — it keeps the OpenAI key
+    // off the client entirely.
+    const generate: GenerateTextFn = aiProxyUrl
+      ? buildProxyGenerateText(aiProxyUrl)
+      : buildOpenAiGenerateText(aiApiKey as string)
 
     // Split entries into batches to avoid hitting model output token limits
     // and API timeouts. With 500+ options, even 150 entries per batch
@@ -258,7 +300,7 @@ export const aiAutoMapSelectValues = async <T extends string>({
           return mapBatch<T>({
             entries: batch,
             fieldOptions,
-            openai,
+            generateText: generate,
             aiModel,
             customValueMappingPrompt,
           }).then((res) => {

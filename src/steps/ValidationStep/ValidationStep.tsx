@@ -83,7 +83,7 @@ export const ValidationStep = <T extends string>({ initialData, file, onBack }: 
     () =>
       fields.filter((field) =>
         initialData.some((row) => {
-          const value = row[field.key]
+          const value = row[field.key as T]
           if (value === undefined || value === null || value === "") return false
           if (Array.isArray(value) && value.length === 0) return false
           return true

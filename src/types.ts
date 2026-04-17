@@ -52,7 +52,17 @@ export type RsiProps<T extends string> = {
   // Use for right-to-left (RTL) support
   rtl?: boolean
   // AI API key for automap with AI feature. Default: uses AI_GATEWAY_API_KEY env variable
+  // WARNING: exposes the key to the browser. Prefer `aiProxyUrl` in production.
   aiApiKey?: string
+  // URL of a server-side proxy that performs the LLM call on behalf of the client.
+  // When set, `aiApiKey` is not required and no key is shipped to the browser.
+  // Contract:
+  //   POST <aiProxyUrl>
+  //   Request  JSON: { prompt: string, model: string }
+  //   Response JSON: { text: string } on success, { error: string } on failure.
+  // The request is sent with `credentials: "same-origin"` so your server-side
+  // session/auth cookies are forwarded automatically.
+  aiProxyUrl?: string
   // AI model to use for automap. Default: "gpt-5-mini"
   aiModel?: string
   // Custom prompt for AI value mapping. Receives optionsList, entriesList, and entriesCount as parameters.
