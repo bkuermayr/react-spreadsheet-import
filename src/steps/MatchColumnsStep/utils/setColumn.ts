@@ -95,19 +95,19 @@ export const setColumnWithUniqueValues = <T extends string>(
     case "multi_select": {
       const fieldOptions = field.fieldType.options
       const separator = multiSelectValueSeparator || ";"
-      // For multi_select with pre-fetched values, values are already split by the server
+      // Server returns raw cell values un-split; split each on the separator so
+      // packed multi-values (e.g. "a$#b$#c") become individual matchable options.
+      let processedValues = uniqueValues.flatMap((entry) =>
+        entry.split(separator).map((v) => v.trim()),
+      )
       // Apply category leaf extraction for "categories" field
-      const processedValues = field.key === "categories" 
-        ? uniqueValues.map((entry) => {
-            if (entry.includes(" > ")) {
-              const segments = entry.split(" > ")
-              return segments[segments.length - 1].trim()
-            }
-            return entry
-          })
-        : uniqueValues
-      // Remove duplicates after leaf extraction
-      const deduplicatedValues = [...new Set(processedValues)]
+      if (field.key === "categories") {
+        processedValues = processedValues.map((entry) =>
+          entry.includes(" > ") ? entry.split(" > ").pop()!.trim() : entry,
+        )
+      }
+      // Remove duplicates after splitting / leaf extraction
+      const deduplicatedValues = [...new Set(processedValues)].filter(Boolean)
       const uniqueData = deduplicatedValues.map((entry) => ({ entry })) as MatchedOptions<T>[]
       const matchedOptions = autoMapSelectValues
         ? uniqueData.map((record) => {
