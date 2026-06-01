@@ -48,16 +48,30 @@ export const applyPresetMappings = <T extends string>(
 
     indexes.forEach((columnIndex) => {
       // Exact field assignment. autoMapSelectValues=false so matchedOptions start
-      // unmapped; we overlay the template's explicit value rules below.
+      // unmapped; we resolve each value ourselves below.
       let col = setColumn(result[columnIndex], field, data, false, multiSelectValueSeparator)
 
-      const valueMap = selectFieldMappings[fieldKey]
-      if (valueMap && "matchedOptions" in col && Array.isArray((col as any).matchedOptions)) {
-        const matchedOptions = (col as any).matchedOptions.map((opt: Partial<MatchedOptions<T>>) =>
-          opt.entry !== undefined && valueMap[opt.entry] !== undefined
-            ? ({ ...opt, value: valueMap[opt.entry] as T })
-            : opt,
-        )
+      if ("matchedOptions" in col && Array.isArray((col as any).matchedOptions)) {
+        // Build a case-insensitive option lookup (by value AND label).
+        const fieldType = field.fieldType as { type: string; options?: { label: string; value: string }[] }
+        const optionByNorm = new Map<string, string>()
+        ;(fieldType.options || []).forEach((o) => {
+          optionByNorm.set(String(o.value).trim().toLowerCase(), o.value)
+          optionByNorm.set(String(o.label).trim().toLowerCase(), o.value)
+        })
+        const valueMap = selectFieldMappings[fieldKey] || {}
+
+        const matchedOptions = (col as any).matchedOptions.map((opt: Partial<MatchedOptions<T>>) => {
+          if (opt.entry === undefined) return opt
+          // 1) explicit template rule wins (keyed by the raw source value)
+          if (valueMap[opt.entry] !== undefined) return { ...opt, value: valueMap[opt.entry] as T }
+          // 2) otherwise auto-map to an existing option, case-insensitively
+          const optionMatch = optionByNorm.get(String(opt.entry).trim().toLowerCase())
+          if (optionMatch !== undefined) return { ...opt, value: optionMatch as T }
+          // 3) leave unmapped (created/passed through on import per settings)
+          return opt
+        })
+
         const allMatched = matchedOptions.length > 0 && matchedOptions.every((o: any) => !!o.value)
         const isMulti =
           col.type === ColumnType.matchedMultiSelect || col.type === ColumnType.matchedMultiSelectOptions

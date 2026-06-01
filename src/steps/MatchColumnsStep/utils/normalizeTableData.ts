@@ -2,6 +2,7 @@ import type { Columns } from "../MatchColumnsStep"
 import { ColumnType } from "../MatchColumnsStep"
 import type { Data, Fields, RawData } from "../../../types"
 import { normalizeCheckboxValue } from "./normalizeCheckboxValue"
+import { splitCategoryLeaves } from "./splitCategoryLeaves"
 
 export const normalizeTableData = <T extends string>(
   columns: Columns<T>,
@@ -44,16 +45,13 @@ export const normalizeTableData = <T extends string>(
             acc[column.value] = []
             return acc
           }
-          let values = curr.split(multiSelectValueSeparator).map((v) => v.trim())
-          
-          // Special handling for "categories" field: extract only the leaf (last segment) from each category path
-          // e.g., "Default Category > Shop > Pferdedecken" becomes "Pferdedecken"
-          if (column.value === "categories") {
-            values = values.map((v) => {
-              const segments = v.split(" > ")
-              return segments[segments.length - 1].trim()
-            })
-          }
+          // Categories: split into leaves accepting both the canonical ("$#" / " > ")
+          // and Magento/Odoo (";" / " / ") separators. Other multi_selects split on
+          // the configured separator only.
+          let values =
+            column.value === "categories"
+              ? splitCategoryLeaves(curr, multiSelectValueSeparator)
+              : curr.split(multiSelectValueSeparator).map((v) => v.trim())
           
           const mappedValues: string[] = values
             .map((v) => {

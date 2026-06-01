@@ -1,5 +1,6 @@
 import uniqBy from "lodash/uniqBy"
 import type { MatchColumnsProps, MatchedOptions } from "../MatchColumnsStep"
+import { splitCategoryLeaves } from "./splitCategoryLeaves"
 
 export const uniqueEntries = <T extends string>(
   data: MatchColumnsProps<T>["data"],
@@ -20,16 +21,12 @@ export const uniqueEntriesWithSeparator = <T extends string>(
     data.flatMap((row) => {
       const cellValue = row[index]
       if (!cellValue) return []
-      return cellValue.split(separator).map((entry) => {
-        let value = entry.trim()
-        // Special handling for "categories" field: extract only the leaf (last segment) from each category path
-        // e.g., "Default Category > Shop > Pferdedecken" becomes "Pferdedecken"
-        if (fieldKey === "categories" && value.includes(" > ")) {
-          const segments = value.split(" > ")
-          value = segments[segments.length - 1].trim()
-        }
-        return { entry: value }
-      })
+      // Categories: split into leaves, accepting both the canonical ("$#" / " > ")
+      // and Magento/Odoo (";" / " / ") separators.
+      if (fieldKey === "categories") {
+        return splitCategoryLeaves(cellValue, separator).map((entry) => ({ entry }))
+      }
+      return cellValue.split(separator).map((entry) => ({ entry: entry.trim() }))
     }),
     "entry",
   ).filter(({ entry }) => !!entry)
