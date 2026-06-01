@@ -10,6 +10,7 @@ import { setSubColumn } from "./utils/setSubColumn"
 import { normalizeTableData } from "./utils/normalizeTableData"
 import type { Field, RawData } from "../../types"
 import { getMatchedColumns } from "./utils/getMatchedColumns"
+import { applyPresetMappings } from "./utils/applyPresetMappings"
 import { UnmatchedFieldsAlert } from "../../components/Alerts/UnmatchedFieldsAlert"
 import { findUnmatchedRequiredFields } from "./utils/findUnmatchedRequiredFields"
 import { aiAutoMapSelectValues } from "./utils/aiAutoMap"
@@ -105,6 +106,7 @@ export const MatchColumnsStep = <T extends string>({
     fetchColumnUniqueValues,
     autoTriggerAiValueMapping,
     passUnmappedValues,
+    presetColumnMappings,
   } = useRsi<T>()
   // AI mapping is available whenever either a direct key or a proxy URL exists.
   const aiEnabled = Boolean(aiApiKey || aiProxyUrl)
@@ -361,6 +363,11 @@ export const MatchColumnsStep = <T extends string>({
 
   useEffect(
     () => {
+      // A saved template's exact mappings take precedence over fuzzy auto-matching.
+      if (presetColumnMappings?.columnMappings && Object.keys(presetColumnMappings.columnMappings).length > 0) {
+        setColumns(applyPresetMappings(columns, fields, data, presetColumnMappings, multiSelectValueSeparator))
+        return
+      }
       if (autoMapHeaders) {
         const matchedColumns = getMatchedColumns(columns, fields, data, autoMapDistance, autoMapSelectValues, multiSelectValueSeparator)
         setColumns(matchedColumns)

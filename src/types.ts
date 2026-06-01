@@ -77,6 +77,17 @@ export type RsiProps<T extends string> = {
   // When true, unmapped select/multi_select values are passed through as-is instead of being filtered out.
   // Useful for "create values on the fly" scenarios where new options should be allowed. Default: false
   passUnmappedValues?: boolean
+  // Exact column + value mappings from a saved template. When provided, the match
+  // step seeds these EXACT mappings (by header name) instead of fuzzy auto-matching:
+  //  - columnMappings: { rawHeader: fieldKey } — multiple headers may map to the
+  //    same field (e.g. a main-image + extra-images column to one gallery field);
+  //  - selectFieldMappings: { fieldKey: { rawValue: mappedValue } } — pre-fills
+  //    select/multi_select value mappings.
+  // Takes precedence over autoMapHeaders. Users can still adjust in the UI.
+  presetColumnMappings?: {
+    columnMappings?: Record<string, string>
+    selectFieldMappings?: Record<string, Record<string, string>>
+  }
 }
 
 export type RawData = Array<string | undefined>
